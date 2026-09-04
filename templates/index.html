@@ -1,0 +1,74 @@
+
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>PharmaStock — Pharmacy Management</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<div class="sidebar">
+  <div class="brand">💊 PharmaStock</div>
+  <button class="nav active" onclick="show('dashboard',this)">Dashboard</button>
+  <button class="nav" onclick="show('inventory',this)">Medicines</button>
+  <button class="nav" onclick="show('sales',this)">Sales & Billing</button>
+  <button class="nav" onclick="show('purchase',this)">Purchases</button>
+  <button class="nav" onclick="show('reports',this)">Reports</button>
+  <div class="sidefoot">Pharmacy Inventory v1.0</div>
+</div>
+<main>
+<header><div><h1 id="title">Dashboard</h1><p>Manage medicines, stock and sales</p></div><a class="export" href="/api/export">Export Stock CSV</a></header>
+
+<section id="dashboard" class="page">
+<div class="cards">
+ <div class="card"><span>Medicines</span><b id="products">0</b></div>
+ <div class="card"><span>Total Units</span><b id="stock">0</b></div>
+ <div class="card"><span>Stock Value</span><b id="value">৳0</b></div>
+ <div class="card warn"><span>Low Stock</span><b id="low">0</b></div>
+ <div class="card danger"><span>Expired</span><b id="expired">0</b></div>
+ <div class="card"><span>Today's Sales</span><b id="today">৳0</b></div>
+</div>
+<div class="panel"><h2>Quick actions</h2><div class="actions">
+<button onclick="show('inventory')">＋ Add Medicine</button><button onclick="show('sales')">🧾 New Sale</button><button onclick="show('purchase')">📦 Stock In</button><button onclick="show('reports')">📊 View Reports</button>
+</div></div>
+</section>
+
+<section id="inventory" class="page hidden">
+<div class="toolbar"><input id="search" placeholder="Search medicine, generic, company or batch..." oninput="loadMeds()"><button onclick="openMed()">＋ Add Medicine</button></div>
+<div class="panel tablewrap"><table><thead><tr><th>Medicine</th><th>Company</th><th>Batch</th><th>Expiry</th><th>Purchase</th><th>Selling</th><th>Stock</th><th>Action</th></tr></thead><tbody id="medrows"></tbody></table></div>
+</section>
+
+<section id="sales" class="page hidden">
+<div class="grid2">
+<div class="panel"><h2>New Sale</h2><input id="customer" placeholder="Customer name (optional)">
+<div class="saleadd"><select id="saleMed"></select><input id="saleQty" type="number" min="1" value="1"><button onclick="addCart()">Add</button></div>
+<div id="cart"></div><div class="total">Total: <b id="cartTotal">৳0</b></div><button class="primary" onclick="completeSale()">Complete Sale</button></div>
+<div class="panel"><h2>Billing</h2><p class="muted">Select a medicine, enter quantity and add it to the cart. Stock is deducted automatically when the sale is completed.</p><div id="saleMsg"></div></div>
+</div>
+</section>
+
+<section id="purchase" class="page hidden">
+<div class="panel formpanel"><h2>Stock In / Purchase</h2>
+<select id="purMed"></select><input id="supplier" placeholder="Supplier">
+<div class="row"><input id="purBatch" placeholder="Batch number"><input id="purExpiry" type="date"><input id="purQty" type="number" min="1" placeholder="Quantity"><input id="purPrice" type="number" step=".01" placeholder="Purchase price"></div>
+<button class="primary" onclick="addPurchase()">Add Stock</button><div id="purMsg"></div>
+</div>
+</section>
+
+<section id="reports" class="page hidden">
+<div class="grid2"><div class="panel"><h2>Sales Report</h2><div id="salesReport"></div></div>
+<div class="panel"><h2>Low / Near-Expiry Stock</h2><div id="stockReport"></div></div></div>
+</section>
+</main>
+
+<div id="modal" class="modal hidden"><div class="modalbox"><button class="close" onclick="closeMed()">×</button><h2 id="modalTitle">Add Medicine</h2>
+<input type="hidden" id="mid">
+<div class="row"><input id="name" placeholder="Medicine name *"><input id="generic" placeholder="Generic name"></div>
+<div class="row"><input id="company" placeholder="Company"><input id="category" placeholder="Category"></div>
+<div class="row"><input id="batch" placeholder="Batch number"><input id="expiry" type="date"></div>
+<div class="row"><input id="purchase" type="number" step=".01" placeholder="Purchase price"><input id="price" type="number" step=".01" placeholder="Selling price"></div>
+<div class="row"><input id="medstock" type="number" min="0" placeholder="Opening stock"><input id="minstock" type="number" min="0" value="10" placeholder="Minimum stock"></div>
+<button class="primary" onclick="saveMed()">Save Medicine</button><div id="medMsg"></div>
+</div></div>
+<script src="/static/app.js"></script>
+</body></html>
