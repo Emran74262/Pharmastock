@@ -931,20 +931,20 @@ def dashboard():
         expired = c.execute(
             text("""
                 SELECT COUNT(*)
-                FROM medicines
-                WHERE expiry IS NOT NULL
+                FROM medicine_batches
+                WHERE stock > 0
+                AND expiry IS NOT NULL
                 AND expiry < :today
             """),
-            {
-                "today": today
-            }
+            {"today": today}
         ).scalar()
 
         near_expiry = c.execute(
             text("""
                 SELECT COUNT(*)
-                FROM medicines
-                WHERE expiry IS NOT NULL
+                FROM medicine_batches
+                WHERE stock > 0
+                AND expiry IS NOT NULL
                 AND expiry >= :today
                 AND expiry <= :future
             """),
@@ -1012,32 +1012,59 @@ def medicines():
 
     with engine.connect() as c:
 
+        base_query = """
+            SELECT
+                m.*,
+                COALESCE((
+                    SELECT SUM(mb.stock)
+                    FROM medicine_batches mb
+                    WHERE mb.medicine_id=m.id
+                ), 0) AS batch_stock,
+                COALESCE((
+                    SELECT SUM(mb.stock)
+                    FROM medicine_batches mb
+                    WHERE mb.medicine_id=m.id
+                    AND mb.stock > 0
+                    AND (mb.expiry IS NULL OR mb.expiry >= :today)
+                ), 0) AS sellable_stock,
+                COALESCE((
+                    SELECT SUM(mb.stock)
+                    FROM medicine_batches mb
+                    WHERE mb.medicine_id=m.id
+                    AND mb.stock > 0
+                    AND mb.expiry IS NOT NULL
+                    AND mb.expiry < :today
+                ), 0) AS expired_stock,
+                (
+                    SELECT mb.expiry
+                    FROM medicine_batches mb
+                    WHERE mb.medicine_id=m.id
+                    AND mb.stock > 0
+                    AND mb.expiry IS NOT NULL
+                    ORDER BY mb.expiry ASC, mb.id ASC
+                    LIMIT 1
+                ) AS next_expiry
+            FROM medicines m
+        """
+
         if q:
-
             rows = c.execute(
-                text("""
-                    SELECT *
-                    FROM medicines
-                    WHERE name ILIKE :q
-                    OR generic ILIKE :q
-                    OR company ILIKE :q
-                    OR category ILIKE :q
-                    OR batch ILIKE :q
-                    ORDER BY name
+                text(base_query + """
+                    WHERE m.name ILIKE :q
+                    OR m.generic ILIKE :q
+                    OR m.company ILIKE :q
+                    OR m.category ILIKE :q
+                    OR m.batch ILIKE :q
+                    ORDER BY m.name
                 """),
-                {
-                    "q": f"%{q}%"
-                }
+                {"q": f"%{q}%", "today": bd_today()}
             ).mappings().all()
-
         else:
-
             rows = c.execute(
-                text("""
-                    SELECT *
-                    FROM medicines
-                    ORDER BY name
-                """)
+                text(base_query + """
+                    ORDER BY m.name
+                """),
+                {"today": bd_today()}
             ).mappings().all()
 
     return jsonify(
@@ -1383,6 +1410,45 @@ def medicine_batches(mid):
     )
 
 
+@app.get("/api/expiry-alerts")
+def expiry_alerts():
+
+    if not login_required():
+        return jsonify(error="Login required"), 401
+
+    today = bd_today()
+    future = today + timedelta(days=90)
+
+    with engine.connect() as c:
+        rows = c.execute(
+            text("""
+                SELECT
+                    mb.id,
+                    mb.medicine_id,
+                    m.name,
+                    m.generic,
+                    mb.batch,
+                    mb.expiry,
+                    mb.stock,
+                    mb.purchase_price,
+                    mb.selling_price,
+                    CASE
+                        WHEN mb.expiry < :today THEN 'EXPIRED'
+                        ELSE 'NEAR_EXPIRY'
+                    END AS status
+                FROM medicine_batches mb
+                JOIN medicines m ON m.id=mb.medicine_id
+                WHERE mb.stock > 0
+                  AND mb.expiry IS NOT NULL
+                  AND mb.expiry <= :future
+                ORDER BY mb.expiry ASC, m.name ASC, mb.id ASC
+            """),
+            {"today": today, "future": future}
+        ).mappings().all()
+
+    return jsonify([dict(r) for r in rows])
+
+
 # =========================================================
 # PURCHASE / STOCK IN
 # =========================================================
@@ -1723,11 +1789,22 @@ def sale():
                         "Medicine not found"
                     )
 
-                if qty > medicine["stock"]:
+                sellable_stock = c.execute(
+                    text("""
+                        SELECT COALESCE(SUM(stock),0)
+                        FROM medicine_batches
+                        WHERE medicine_id=:mid
+                        AND stock>0
+                        AND (expiry IS NULL OR expiry >= :today)
+                    """),
+                    {"mid": medicine["id"], "today": bd_today()}
+                ).scalar()
 
+                if qty > int(sellable_stock or 0):
                     raise ValueError(
-                        f"Insufficient stock: "
-                        f"{medicine['name']}"
+                        f"Insufficient non-expired stock: "
+                        f"{medicine['name']}. "
+                        f"Available for sale: {int(sellable_stock or 0)}"
                     )
 
                 subtotal += (
@@ -1800,6 +1877,7 @@ def sale():
                         FROM medicine_batches
                         WHERE medicine_id=:mid
                         AND stock>0
+                        AND (expiry IS NULL OR expiry >= :today)
                         ORDER BY expiry NULLS LAST, id
                         FOR UPDATE
                     """),
@@ -2039,21 +2117,38 @@ def stock_report():
 
         rows = c.execute(
             text("""
-                SELECT *
-                FROM medicines
-                WHERE stock<=min_stock
-                OR (
-                    expiry IS NOT NULL
-                    AND expiry<=:future
+                SELECT
+                    m.*,
+                    COALESCE((
+                        SELECT SUM(mb.stock)
+                        FROM medicine_batches mb
+                        WHERE mb.medicine_id=m.id
+                        AND mb.stock > 0
+                        AND mb.expiry IS NOT NULL
+                        AND mb.expiry < :today
+                    ),0) AS expired_stock,
+                    COALESCE((
+                        SELECT SUM(mb.stock)
+                        FROM medicine_batches mb
+                        WHERE mb.medicine_id=m.id
+                        AND mb.stock > 0
+                        AND mb.expiry IS NOT NULL
+                        AND mb.expiry >= :today
+                        AND mb.expiry <= :future
+                    ),0) AS near_expiry_stock
+                FROM medicines m
+                WHERE m.stock<=m.min_stock
+                OR EXISTS (
+                    SELECT 1
+                    FROM medicine_batches mb
+                    WHERE mb.medicine_id=m.id
+                    AND mb.stock > 0
+                    AND mb.expiry IS NOT NULL
+                    AND mb.expiry<=:future
                 )
-                ORDER BY expiry NULLS LAST
+                ORDER BY m.name
             """),
-            {
-                "future": (
-                    today
-                    + timedelta(days=90)
-                )
-            }
+            {"today": today, "future": today + timedelta(days=90)}
         ).mappings().all()
 
     return jsonify(
