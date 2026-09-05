@@ -196,8 +196,8 @@ else:
         }
     )
 
-        # Migrate existing medicine records into batch tracking.
-        medicines = conn.execute(
+    # Migrate existing medicine records into batch tracking.
+    medicines = conn.execute(
             text("""
                 SELECT id,batch,expiry,purchase,price,stock
                 FROM medicines
