@@ -154,27 +154,47 @@ def init_db():
             ADD COLUMN IF NOT EXISTS discount NUMERIC(12,2) DEFAULT 0
         """))
 
-        # Create an initial admin account from environment variables.
-        count = conn.execute(
-            text("SELECT COUNT(*) FROM users")
-        ).scalar()
+      # Create or reset the initial admin account
+username = os.environ.get("ADMIN_USERNAME", "admin")
+password = os.environ.get("ADMIN_PASSWORD", "admin123")
 
-        if count == 0:
-            username = os.environ.get("ADMIN_USERNAME", "admin")
-            password = os.environ.get("ADMIN_PASSWORD", "admin123")
+existing_admin = conn.execute(
+    text("""
+        SELECT id
+        FROM users
+        WHERE username=:username
+    """),
+    {"username": username}
+).first()
 
-            conn.execute(
-                text("""
-                    INSERT INTO users
-                    (username,password_hash,role,active,created_at)
-                    VALUES(:username,:password,'admin',TRUE,:now)
-                """),
-                {
-                    "username": username,
-                    "password": generate_password_hash(password),
-                    "now": bd_now_naive()
-                }
-            )
+if existing_admin:
+    conn.execute(
+        text("""
+            UPDATE users
+            SET
+                password_hash=:password,
+                role='admin',
+                active=TRUE
+            WHERE username=:username
+        """),
+        {
+            "username": username,
+            "password": generate_password_hash(password)
+        }
+    )
+else:
+    conn.execute(
+        text("""
+            INSERT INTO users
+            (username,password_hash,role,active,created_at)
+            VALUES(:username,:password,'admin',TRUE,:now)
+        """),
+        {
+            "username": username,
+            "password": generate_password_hash(password),
+            "now": bd_now_naive()
+        }
+    )
 
         # Migrate existing medicine records into batch tracking.
         medicines = conn.execute(
