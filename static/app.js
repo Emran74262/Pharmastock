@@ -30,8 +30,11 @@ async function checkSession() {
     const r = await fetch("/api/me");
     const data = await r.json();
 
-    if (r.ok && data.authenticated) {
-      currentUser = data.user;
+   if (r.ok && data.logged_in) {
+      currentUser = {
+  username: data.username,
+  role: data.role
+};
       showApp();
     } else {
       showLogin();
