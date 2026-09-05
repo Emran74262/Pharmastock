@@ -565,6 +565,31 @@
 </div>
 
 
+<!-- BATCH DETAILS MODAL -->
+
+<div id="batchModal" class="modal hidden">
+  <div class="modalbox" style="max-width:900px">
+    <button class="close" onclick="closeBatchModal()">×</button>
+    <h2 id="batchModalTitle">📦 Batches</h2>
+    <div class="tablewrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Batch</th>
+            <th>Expiry</th>
+            <th>Stock</th>
+            <th>Purchase Price</th>
+            <th>Selling Price</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody id="batchRows"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+
 <!-- MEDICINE MODAL -->
 
 <div id="modal"

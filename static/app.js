@@ -253,10 +253,10 @@ async function loadDash() {
         alerts.push(`⚠️ ${d.low} medicine(s) have low stock.`);
 
       if (d.expired > 0)
-        alerts.push(`🔴 ${d.expired} medicine(s) are expired.`);
+        alerts.push(`🔴 ${d.expired} batch(es) are expired.`);
 
       if (d.near_expiry > 0)
-        alerts.push(`🟠 ${d.near_expiry} medicine(s) are near expiry.`);
+        alerts.push(`🟠 ${d.near_expiry} batch(es) are near expiry.`);
 
       $("dashboardAlerts").innerHTML =
         alerts.length
@@ -288,16 +288,34 @@ async function loadMeds() {
 
     meds = await r.json();
 
-    const today = new Date();
+    const today = bdToday();
 
     let rows = meds.map(m => {
-
-      const expiry = m.expiry
-        ? new Date(m.expiry)
-        : null;
+      const expiry = m.next_expiry
+        ? String(m.next_expiry).slice(0, 10)
+        : (m.expiry ? String(m.expiry).slice(0, 10) : "");
 
       const ex = expiry && expiry < today;
       const low = Number(m.stock) <= Number(m.min_stock);
+      const expiredStock = Number(m.expired_stock || 0);
+      const sellableStock = Number(m.sellable_stock ?? m.stock ?? 0);
+
+      let expiryClass = "";
+      let expiryLabel = expiry || "—";
+
+      if (ex) {
+        expiryClass = "expired";
+        expiryLabel += " (EXPIRED)";
+      } else if (expiry) {
+        const days = Math.ceil(
+          (new Date(expiry + "T00:00:00") -
+           new Date(today + "T00:00:00")) / 86400000
+        );
+        if (days <= 90) {
+          expiryClass = "near-expiry";
+          expiryLabel += ` (${days}d)`;
+        }
+      }
 
       return `
         <tr>
@@ -306,31 +324,26 @@ async function loadMeds() {
             <br>
             <small>${esc(m.generic || "")}</small>
           </td>
-
           <td>${esc(m.company || "")}</td>
-
-          <td>${esc(m.batch || "")}</td>
-
-          <td class="${ex ? "expired" : ""}">
-            ${m.expiry || "—"}
-          </td>
-
-          <td>${money(m.purchase)}</td>
-
-          <td>${money(m.price)}</td>
-
-          <td class="${low ? "stocklow" : ""}">
-            ${m.stock}
-          </td>
-
           <td>
-            <button onclick='openMed(${JSON.stringify(m)})'>
-              Edit
-            </button>
-
-            <button onclick="delMed(${m.id})">
-              Delete
-            </button>
+            ${esc(m.batch || "Multiple")}
+            <br><small>${Number(m.batch_stock || m.stock || 0)} batch units</small>
+          </td>
+          <td class="${expiryClass}">
+            ${esc(expiryLabel)}
+            ${expiredStock > 0
+              ? `<br><small>${expiredStock} expired unit(s)</small>`
+              : ""}
+          </td>
+          <td>${money(m.purchase)}</td>
+          <td>${money(m.price)}</td>
+          <td class="${low ? "stocklow" : ""}">
+            ${m.stock}<br><small>${sellableStock} sellable</small>
+          </td>
+          <td>
+            <button onclick="loadBatches(${m.id}, ${JSON.stringify(m.name)})">Batches</button>
+            <button onclick='openMed(${JSON.stringify(m)})'>Edit</button>
+            <button onclick="delMed(${m.id})">Delete</button>
           </td>
         </tr>
       `;
@@ -778,6 +791,73 @@ async function printInvoice(invoice) {
 }
 
 /* =========================
+   BATCH DETAILS
+========================= */
+
+async function loadBatches(mid, medicineName) {
+  const modal = $("batchModal");
+  const title = $("batchModalTitle");
+  const rows = $("batchRows");
+
+  if (!modal || !rows) return;
+
+  title.textContent = `📦 ${medicineName} — Batches`;
+  rows.innerHTML = '<tr><td colspan="6">Loading...</td></tr>';
+  modal.classList.remove("hidden");
+
+  try {
+    const r = await fetch(`/api/medicines/${mid}/batches`);
+
+    if (!r.ok) {
+      rows.innerHTML = '<tr><td colspan="6">Could not load batches.</td></tr>';
+      return;
+    }
+
+    const data = await r.json();
+    const today = bdToday();
+
+    rows.innerHTML = data.map(b => {
+      const expiry = b.expiry ? String(b.expiry).slice(0, 10) : "";
+      let status = "OK";
+      let cls = "";
+
+      if (expiry && expiry < today) {
+        status = "EXPIRED";
+        cls = "expired";
+      } else if (expiry) {
+        const days = Math.ceil(
+          (new Date(expiry + "T00:00:00") -
+           new Date(today + "T00:00:00")) / 86400000
+        );
+        if (days <= 90) {
+          status = `NEAR (${days}d)`;
+          cls = "near-expiry";
+        }
+      }
+
+      return `
+        <tr>
+          <td>${esc(b.batch || "—")}</td>
+          <td class="${cls}">${esc(expiry || "—")}</td>
+          <td>${Number(b.stock || 0)}</td>
+          <td>${money(b.purchase_price)}</td>
+          <td>${money(b.selling_price)}</td>
+          <td class="${cls}">${status}</td>
+        </tr>
+      `;
+    }).join("") || '<tr><td colspan="6">No batches found.</td></tr>';
+
+  } catch (e) {
+    console.error(e);
+    rows.innerHTML = '<tr><td colspan="6">Server error.</td></tr>';
+  }
+}
+
+function closeBatchModal() {
+  if ($("batchModal")) $("batchModal").classList.add("hidden");
+}
+
+/* =========================
    STOCK IN
 ========================= */
 
@@ -838,7 +918,7 @@ async function loadMovements() {
 
   try {
 
-    const r = await fetch("/api/movements");
+    const r = await fetch("/api/stock-movements");
 
     if (!r.ok) {
       $("movementRows").innerHTML =
