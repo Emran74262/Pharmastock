@@ -1,4 +1,4 @@
-
+import os
 import io
 import csv
 import json
@@ -16,14 +16,20 @@ from sqlalchemy.exc import SQLAlchemyError
 
 app = Flask(__name__)
 
-app.secret_key = os.environ.get("SECRET_KEY", "change-this-secret-key")
+app.secret_key = os.environ.get(
+    "SECRET_KEY",
+    "change-this-secret-key"
+)
 
 DATABASE_URL = os.environ.get(
     "DATABASE_URL",
     "postgresql+psycopg://pharma:pharma@localhost:5432/pharmacy"
 )
 
-engine = create_engine(DATABASE_URL, pool_pre_ping=True)
+engine = create_engine(
+    DATABASE_URL,
+    pool_pre_ping=True
+)
 
 BD = ZoneInfo("Asia/Dhaka")
 
@@ -138,6 +144,7 @@ CREATE TABLE IF NOT EXISTS audit_logs(
 def init_db():
     with engine.begin() as conn:
 
+        # Create tables
         for statement in SCHEMA.strip().split(";"):
             if statement.strip():
                 conn.execute(text(statement))
@@ -153,40 +160,52 @@ def init_db():
             ADD COLUMN IF NOT EXISTS discount NUMERIC(12,2) DEFAULT 0
         """))
 
-        # Create or reset the initial admin account
-        username = os.environ.get("ADMIN_USERNAME", "admin")
-        password = os.environ.get("ADMIN_PASSWORD", "admin123")
+        # -------------------------------------------------
+        # INITIAL ADMIN ACCOUNT
+        # -------------------------------------------------
+        #
+        # IMPORTANT:
+        # The admin account is created ONLY when there
+        # are no users in the database.
+        #
+        # Existing passwords are NEVER reset when the
+        # server restarts.
+        #
 
-        existing_admin = conn.execute(
-            text("""
-                SELECT id
-                FROM users
-                WHERE username=:username
-            """),
-            {"username": username}
-        ).first()
+        username = os.environ.get(
+            "ADMIN_USERNAME",
+            "admin"
+        )
 
-        if existing_admin:
-            conn.execute(
-                text("""
-                    UPDATE users
-                    SET
-                        password_hash=:password,
-                        role='admin',
-                        active=TRUE
-                    WHERE username=:username
-                """),
-                {
-                    "username": username,
-                    "password": generate_password_hash(password)
-                }
-            )
-        else:
+        password = os.environ.get(
+            "ADMIN_PASSWORD",
+            "admin123"
+        )
+
+        user_count = conn.execute(
+            text("SELECT COUNT(*) FROM users")
+        ).scalar()
+
+        if user_count == 0:
+
             conn.execute(
                 text("""
                     INSERT INTO users
-                    (username,password_hash,role,active,created_at)
-                    VALUES(:username,:password,'admin',TRUE,:now)
+                    (
+                        username,
+                        password_hash,
+                        role,
+                        active,
+                        created_at
+                    )
+                    VALUES
+                    (
+                        :username,
+                        :password,
+                        'admin',
+                        TRUE,
+                        :now
+                    )
                 """),
                 {
                     "username": username,
@@ -195,10 +214,19 @@ def init_db():
                 }
             )
 
-        # Migrate existing medicine records into batch tracking.
+        # -------------------------------------------------
+        # MIGRATE EXISTING MEDICINES INTO BATCH TRACKING
+        # -------------------------------------------------
+
         medicines = conn.execute(
             text("""
-                SELECT id,batch,expiry,purchase,price,stock
+                SELECT
+                    id,
+                    batch,
+                    expiry,
+                    purchase,
+                    price,
+                    stock
                 FROM medicines
                 WHERE NOT EXISTS (
                     SELECT 1
@@ -209,20 +237,31 @@ def init_db():
         ).mappings().all()
 
         for m in medicines:
+
             conn.execute(
                 text("""
                     INSERT INTO medicine_batches
                     (
-                        medicine_id,batch,expiry,
-                        purchase_price,selling_price,
-                        stock,created_at
+                        medicine_id,
+                        batch,
+                        expiry,
+                        purchase_price,
+                        selling_price,
+                        stock,
+                        created_at
                     )
-                    VALUES(
-                        :medicine_id,:batch,:expiry,
-                        :purchase,:price,
-                        :stock,:now
+                    VALUES
+                    (
+                        :medicine_id,
+                        :batch,
+                        :expiry,
+                        :purchase,
+                        :price,
+                        :stock,
+                        :now
                     )
-                    ON CONFLICT(medicine_id,batch) DO NOTHING
+                    ON CONFLICT(medicine_id,batch)
+                    DO NOTHING
                 """),
                 {
                     "medicine_id": m["id"],
@@ -241,15 +280,21 @@ def init_db():
 # =========================================================
 
 def current_user():
+
     uid = session.get("user_id")
 
     if not uid:
         return None
 
     with engine.connect() as c:
+
         return c.execute(
             text("""
-                SELECT id,username,role,active
+                SELECT
+                    id,
+                    username,
+                    role,
+                    active
                 FROM users
                 WHERE id=:id
             """),
@@ -258,24 +303,47 @@ def current_user():
 
 
 def login_required():
-    return current_user() is not None
+
+    user = current_user()
+
+    return user is not None and user["active"] is True
 
 
 def admin_required():
+
     user = current_user()
-    return user and user["role"] == "admin"
+
+    return (
+        user is not None
+        and user["active"] is True
+        and user["role"] == "admin"
+    )
 
 
 def log_action(action, details=""):
+
     user = current_user()
+
     username = user["username"] if user else ""
 
     with engine.begin() as c:
+
         c.execute(
             text("""
                 INSERT INTO audit_logs
-                (username,action,details,created_at)
-                VALUES(:username,:action,:details,:now)
+                (
+                    username,
+                    action,
+                    details,
+                    created_at
+                )
+                VALUES
+                (
+                    :username,
+                    :action,
+                    :details,
+                    :now
+                )
             """),
             {
                 "username": username,
@@ -292,19 +360,28 @@ def log_action(action, details=""):
 
 @app.get("/login")
 def login_page():
+
     if current_user():
         return redirect("/")
+
     return render_template("index.html")
 
 
 @app.post("/api/login")
 def login():
+
     data = request.json or {}
 
-    username = str(data.get("username", "")).strip()
-    password = str(data.get("password", ""))
+    username = str(
+        data.get("username", "")
+    ).strip()
+
+    password = str(
+        data.get("password", "")
+    )
 
     with engine.connect() as c:
+
         user = c.execute(
             text("""
                 SELECT *
@@ -312,18 +389,28 @@ def login():
                 WHERE username=:username
                 AND active=TRUE
             """),
-            {"username": username}
+            {
+                "username": username
+            }
         ).mappings().first()
 
     if not user or not check_password_hash(
-        user["password_hash"], password
+        user["password_hash"],
+        password
     ):
-        return jsonify(error="Invalid username or password"), 401
+
+        return jsonify(
+            error="Invalid username or password"
+        ), 401
 
     session.clear()
+
     session["user_id"] = user["id"]
 
-    log_action("LOGIN", "Successful login")
+    log_action(
+        "LOGIN",
+        "Successful login"
+    )
 
     return jsonify(
         ok=True,
@@ -334,6 +421,7 @@ def login():
 
 @app.post("/api/logout")
 def logout():
+
     user = current_user()
 
     if user:
@@ -341,15 +429,21 @@ def logout():
 
     session.clear()
 
-    return jsonify(ok=True)
+    return jsonify(
+        ok=True
+    )
 
 
 @app.get("/api/me")
 def me():
+
     user = current_user()
 
     if not user:
-        return jsonify(logged_in=False)
+
+        return jsonify(
+            logged_in=False
+        )
 
     return jsonify(
         logged_in=True,
@@ -359,19 +453,404 @@ def me():
 
 
 # =========================================================
+# CHANGE PASSWORD
+# =========================================================
+
+@app.get("/change-password")
+def change_password_page():
+
+    if not login_required():
+        return redirect("/login")
+
+    return """
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport"
+      content="width=device-width,initial-scale=1">
+
+<title>PharmaStock — Change Password</title>
+
+<style>
+
+body {
+    margin: 0;
+    font-family: Arial, sans-serif;
+    background: #f4f7fb;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+}
+
+.card {
+    width: 420px;
+    max-width: calc(100% - 30px);
+    background: white;
+    padding: 30px;
+    border-radius: 14px;
+    box-shadow: 0 8px 30px rgba(0,0,0,.10);
+}
+
+h1 {
+    margin-top: 0;
+    margin-bottom: 8px;
+}
+
+p {
+    color: #666;
+}
+
+label {
+    display: block;
+    margin-top: 18px;
+    margin-bottom: 6px;
+    font-weight: bold;
+}
+
+input {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 12px;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    font-size: 15px;
+}
+
+button {
+    width: 100%;
+    margin-top: 22px;
+    padding: 13px;
+    border: 0;
+    border-radius: 8px;
+    background: #2563eb;
+    color: white;
+    font-size: 16px;
+    cursor: pointer;
+}
+
+button:hover {
+    background: #1d4ed8;
+}
+
+.back {
+    display: block;
+    text-align: center;
+    margin-top: 18px;
+    color: #2563eb;
+    text-decoration: none;
+}
+
+#message {
+    margin-top: 15px;
+    padding: 10px;
+    border-radius: 7px;
+    display: none;
+}
+
+.success {
+    background: #dcfce7;
+    color: #166534;
+}
+
+.error {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+</style>
+</head>
+
+<body>
+
+<div class="card">
+
+<h1>⚙️ Change Password</h1>
+
+<p>
+Change the password for your PharmaStock account.
+</p>
+
+<form id="passwordForm">
+
+<label>Current Password</label>
+
+<input
+    type="password"
+    id="current_password"
+    required
+>
+
+<label>New Password</label>
+
+<input
+    type="password"
+    id="new_password"
+    minlength="8"
+    required
+>
+
+<label>Confirm New Password</label>
+
+<input
+    type="password"
+    id="confirm_password"
+    minlength="8"
+    required
+>
+
+<button type="submit">
+    Change Password
+</button>
+
+</form>
+
+<div id="message"></div>
+
+<a class="back" href="/">
+    ← Back to PharmaStock
+</a>
+
+</div>
+
+<script>
+
+const form = document.getElementById("passwordForm");
+const message = document.getElementById("message");
+
+form.addEventListener("submit", async function(e) {
+
+    e.preventDefault();
+
+    message.style.display = "none";
+
+    const current_password =
+        document.getElementById(
+            "current_password"
+        ).value;
+
+    const new_password =
+        document.getElementById(
+            "new_password"
+        ).value;
+
+    const confirm_password =
+        document.getElementById(
+            "confirm_password"
+        ).value;
+
+    if (new_password.length < 8) {
+
+        showMessage(
+            "New password must be at least 8 characters.",
+            false
+        );
+
+        return;
+    }
+
+    if (new_password !== confirm_password) {
+
+        showMessage(
+            "New passwords do not match.",
+            false
+        );
+
+        return;
+    }
+
+    try {
+
+        const response = await fetch(
+            "/api/change-password",
+            {
+                method: "POST",
+                headers: {
+                    "Content-Type":
+                        "application/json"
+                },
+                body: JSON.stringify({
+                    current_password,
+                    new_password
+                })
+            }
+        );
+
+        const data = await response.json();
+
+        if (!response.ok) {
+
+            showMessage(
+                data.error ||
+                "Password change failed.",
+                false
+            );
+
+            return;
+        }
+
+        showMessage(
+            "Password changed successfully.",
+            true
+        );
+
+        form.reset();
+
+    } catch (error) {
+
+        showMessage(
+            "Server error. Please try again.",
+            false
+        );
+    }
+
+});
+
+
+function showMessage(text, success) {
+
+    message.textContent = text;
+
+    message.className =
+        success ? "success" : "error";
+
+    message.style.display = "block";
+}
+
+</script>
+
+</body>
+</html>
+"""
+
+
+@app.post("/api/change-password")
+def change_password():
+
+    if not login_required():
+
+        return jsonify(
+            error="Login required"
+        ), 401
+
+    data = request.json or {}
+
+    current_password = str(
+        data.get("current_password", "")
+    )
+
+    new_password = str(
+        data.get("new_password", "")
+    )
+
+    if not current_password or not new_password:
+
+        return jsonify(
+            error="Current password and new password are required"
+        ), 400
+
+    if len(new_password) < 8:
+
+        return jsonify(
+            error="New password must be at least 8 characters"
+        ), 400
+
+    user = current_user()
+
+    if not user:
+
+        return jsonify(
+            error="User not found"
+        ), 401
+
+    with engine.connect() as c:
+
+        user_record = c.execute(
+            text("""
+                SELECT *
+                FROM users
+                WHERE id=:id
+            """),
+            {
+                "id": user["id"]
+            }
+        ).mappings().first()
+
+    if not user_record:
+
+        return jsonify(
+            error="User not found"
+        ), 401
+
+    if not check_password_hash(
+        user_record["password_hash"],
+        current_password
+    ):
+
+        return jsonify(
+            error="Current password is incorrect"
+        ), 400
+
+    if check_password_hash(
+        user_record["password_hash"],
+        new_password
+    ):
+
+        return jsonify(
+            error="New password must be different from current password"
+        ), 400
+
+    new_hash = generate_password_hash(
+        new_password
+    )
+
+    with engine.begin() as c:
+
+        c.execute(
+            text("""
+                UPDATE users
+                SET password_hash=:password
+                WHERE id=:id
+            """),
+            {
+                "password": new_hash,
+                "id": user["id"]
+            }
+        )
+
+    log_action(
+        "CHANGE_PASSWORD",
+        "Password changed successfully"
+    )
+
+    return jsonify(
+        ok=True
+    )
+
+
+# =========================================================
 # MAIN
 # =========================================================
 
 @app.route("/")
 def index():
-    return render_template("index.html")
+
+    return render_template(
+        "index.html"
+    )
 
 
 @app.get("/health")
 def health():
+
     try:
+
         with engine.connect() as conn:
-            conn.execute(text("SELECT 1"))
+
+            conn.execute(
+                text("SELECT 1")
+            )
 
         return jsonify(
             status="ok",
@@ -379,6 +858,7 @@ def health():
         )
 
     except Exception:
+
         return jsonify(
             status="error",
             database="unavailable"
@@ -387,6 +867,7 @@ def health():
 
 @app.get("/api/time")
 def api_time():
+
     now = bd_now()
 
     return jsonify(
@@ -403,24 +884,38 @@ def api_time():
 
 @app.get("/api/dashboard")
 def dashboard():
+
     if not login_required():
-        return jsonify(error="Login required"), 401
+
+        return jsonify(
+            error="Login required"
+        ), 401
 
     today = bd_today()
 
     with engine.connect() as c:
 
         total_products = c.execute(
-            text("SELECT COUNT(*) FROM medicines")
+            text("""
+                SELECT COUNT(*)
+                FROM medicines
+            """)
         ).scalar()
 
         stock = c.execute(
-            text("SELECT COALESCE(SUM(stock),0) FROM medicines")
+            text("""
+                SELECT COALESCE(
+                    SUM(stock),0
+                )
+                FROM medicines
+            """)
         ).scalar()
 
         value = c.execute(
             text("""
-                SELECT COALESCE(SUM(stock*purchase),0)
+                SELECT COALESCE(
+                    SUM(stock*purchase),0
+                )
                 FROM medicines
             """)
         ).scalar()
@@ -440,7 +935,9 @@ def dashboard():
                 WHERE expiry IS NOT NULL
                 AND expiry < :today
             """),
-            {"today": today}
+            {
+                "today": today
+            }
         ).scalar()
 
         near_expiry = c.execute(
@@ -459,21 +956,39 @@ def dashboard():
 
         today_sales = c.execute(
             text("""
-                SELECT COALESCE(SUM(total),0)
+                SELECT COALESCE(
+                    SUM(total),0
+                )
                 FROM sales
                 WHERE created_at::date=:today
             """),
-            {"today": today}
+            {
+                "today": today
+            }
         ).scalar()
 
     return jsonify(
-        total_products=int(total_products),
-        stock=int(stock),
-        value=float(value or 0),
-        low=int(low),
-        expired=int(expired),
-        near_expiry=int(near_expiry),
-        today=float(today_sales or 0)
+        total_products=int(
+            total_products or 0
+        ),
+        stock=int(
+            stock or 0
+        ),
+        value=float(
+            value or 0
+        ),
+        low=int(
+            low or 0
+        ),
+        expired=int(
+            expired or 0
+        ),
+        near_expiry=int(
+            near_expiry or 0
+        ),
+        today=float(
+            today_sales or 0
+        )
     )
 
 
@@ -483,14 +998,22 @@ def dashboard():
 
 @app.get("/api/medicines")
 def medicines():
-    if not login_required():
-        return jsonify(error="Login required"), 401
 
-    q = request.args.get("q", "").strip()
+    if not login_required():
+
+        return jsonify(
+            error="Login required"
+        ), 401
+
+    q = request.args.get(
+        "q",
+        ""
+    ).strip()
 
     with engine.connect() as c:
 
         if q:
+
             rows = c.execute(
                 text("""
                     SELECT *
@@ -502,10 +1025,13 @@ def medicines():
                     OR batch ILIKE :q
                     ORDER BY name
                 """),
-                {"q": f"%{q}%"}
+                {
+                    "q": f"%{q}%"
+                }
             ).mappings().all()
 
         else:
+
             rows = c.execute(
                 text("""
                     SELECT *
@@ -514,94 +1040,181 @@ def medicines():
                 """)
             ).mappings().all()
 
-    return jsonify([dict(r) for r in rows])
+    return jsonify(
+        [dict(r) for r in rows]
+    )
 
 
 @app.post("/api/medicines")
 def add_medicine():
+
     if not login_required():
-        return jsonify(error="Login required"), 401
+
+        return jsonify(
+            error="Login required"
+        ), 401
 
     d = request.json or {}
 
     if not d.get("name"):
-        return jsonify(error="Medicine name is required"), 400
+
+        return jsonify(
+            error="Medicine name is required"
+        ), 400
 
     try:
+
         with engine.begin() as c:
 
             mid = c.execute(
                 text("""
                     INSERT INTO medicines
                     (
-                        name,generic,company,category,
-                        batch,expiry,purchase,price,
-                        stock,min_stock
+                        name,
+                        generic,
+                        company,
+                        category,
+                        batch,
+                        expiry,
+                        purchase,
+                        price,
+                        stock,
+                        min_stock
                     )
-                    VALUES(
-                        :name,:generic,:company,:category,
-                        :batch,NULLIF(:expiry,'')::date,
-                        :purchase,:price,:stock,:min_stock
+                    VALUES
+                    (
+                        :name,
+                        :generic,
+                        :company,
+                        :category,
+                        :batch,
+                        NULLIF(:expiry,'')::date,
+                        :purchase,
+                        :price,
+                        :stock,
+                        :min_stock
                     )
                     RETURNING id
                 """),
                 {
-                    "name": d.get("name", ""),
-                    "generic": d.get("generic", ""),
-                    "company": d.get("company", ""),
-                    "category": d.get("category", ""),
-                    "batch": d.get("batch", ""),
-                    "expiry": d.get("expiry", ""),
-                    "purchase": float(d.get("purchase") or 0),
-                    "price": float(d.get("price") or 0),
-                    "stock": int(d.get("stock") or 0),
-                    "min_stock": int(d.get("min_stock") or 10)
+                    "name": d.get(
+                        "name",
+                        ""
+                    ),
+                    "generic": d.get(
+                        "generic",
+                        ""
+                    ),
+                    "company": d.get(
+                        "company",
+                        ""
+                    ),
+                    "category": d.get(
+                        "category",
+                        ""
+                    ),
+                    "batch": d.get(
+                        "batch",
+                        ""
+                    ),
+                    "expiry": d.get(
+                        "expiry",
+                        ""
+                    ),
+                    "purchase": float(
+                        d.get("purchase") or 0
+                    ),
+                    "price": float(
+                        d.get("price") or 0
+                    ),
+                    "stock": int(
+                        d.get("stock") or 0
+                    ),
+                    "min_stock": int(
+                        d.get("min_stock") or 10
+                    )
                 }
             ).scalar_one()
 
-            if int(d.get("stock") or 0) > 0:
+            if int(
+                d.get("stock") or 0
+            ) > 0:
+
                 c.execute(
                     text("""
                         INSERT INTO medicine_batches
                         (
-                            medicine_id,batch,expiry,
-                            purchase_price,selling_price,
-                            stock,created_at
+                            medicine_id,
+                            batch,
+                            expiry,
+                            purchase_price,
+                            selling_price,
+                            stock,
+                            created_at
                         )
-                        VALUES(
-                            :mid,:batch,
+                        VALUES
+                        (
+                            :mid,
+                            :batch,
                             NULLIF(:expiry,'')::date,
-                            :purchase,:price,
-                            :stock,:now
+                            :purchase,
+                            :price,
+                            :stock,
+                            :now
                         )
                     """),
                     {
                         "mid": mid,
-                        "batch": d.get("batch", ""),
-                        "expiry": d.get("expiry", ""),
-                        "purchase": float(d.get("purchase") or 0),
-                        "price": float(d.get("price") or 0),
-                        "stock": int(d.get("stock") or 0),
+                        "batch": d.get(
+                            "batch",
+                            ""
+                        ),
+                        "expiry": d.get(
+                            "expiry",
+                            ""
+                        ),
+                        "purchase": float(
+                            d.get("purchase") or 0
+                        ),
+                        "price": float(
+                            d.get("price") or 0
+                        ),
+                        "stock": int(
+                            d.get("stock") or 0
+                        ),
                         "now": bd_now_naive()
                     }
                 )
 
-        log_action("ADD_MEDICINE", d.get("name", ""))
+        log_action(
+            "ADD_MEDICINE",
+            d.get("name", "")
+        )
 
-        return jsonify(ok=True)
+        return jsonify(
+            ok=True
+        )
 
     except Exception as e:
-        return jsonify(error=str(e)), 400
+
+        return jsonify(
+            error=str(e)
+        ), 400
 
 
 @app.put("/api/medicines/<int:mid>")
 def edit_medicine(mid):
+
     if not login_required():
-        return jsonify(error="Login required"), 401
+
+        return jsonify(
+            error="Login required"
+        ), 401
 
     d = request.json or {}
 
     try:
+
         with engine.begin() as c:
 
             r = c.execute(
@@ -622,36 +1235,78 @@ def edit_medicine(mid):
                 """),
                 {
                     "id": mid,
-                    "name": d.get("name", ""),
-                    "generic": d.get("generic", ""),
-                    "company": d.get("company", ""),
-                    "category": d.get("category", ""),
-                    "batch": d.get("batch", ""),
-                    "expiry": d.get("expiry", ""),
-                    "purchase": float(d.get("purchase") or 0),
-                    "price": float(d.get("price") or 0),
-                    "stock": int(d.get("stock") or 0),
-                    "min_stock": int(d.get("min_stock") or 10)
+                    "name": d.get(
+                        "name",
+                        ""
+                    ),
+                    "generic": d.get(
+                        "generic",
+                        ""
+                    ),
+                    "company": d.get(
+                        "company",
+                        ""
+                    ),
+                    "category": d.get(
+                        "category",
+                        ""
+                    ),
+                    "batch": d.get(
+                        "batch",
+                        ""
+                    ),
+                    "expiry": d.get(
+                        "expiry",
+                        ""
+                    ),
+                    "purchase": float(
+                        d.get("purchase") or 0
+                    ),
+                    "price": float(
+                        d.get("price") or 0
+                    ),
+                    "stock": int(
+                        d.get("stock") or 0
+                    ),
+                    "min_stock": int(
+                        d.get("min_stock") or 10
+                    )
                 }
             )
 
             if r.rowcount == 0:
-                return jsonify(error="Medicine not found"), 404
 
-        log_action("EDIT_MEDICINE", str(mid))
+                return jsonify(
+                    error="Medicine not found"
+                ), 404
 
-        return jsonify(ok=True)
+        log_action(
+            "EDIT_MEDICINE",
+            str(mid)
+        )
+
+        return jsonify(
+            ok=True
+        )
 
     except Exception as e:
-        return jsonify(error=str(e)), 400
+
+        return jsonify(
+            error=str(e)
+        ), 400
 
 
 @app.delete("/api/medicines/<int:mid>")
 def delete_medicine(mid):
+
     if not admin_required():
-        return jsonify(error="Admin access required"), 403
+
+        return jsonify(
+            error="Admin access required"
+        ), 403
 
     try:
+
         with engine.begin() as c:
 
             c.execute(
@@ -659,7 +1314,9 @@ def delete_medicine(mid):
                     DELETE FROM medicine_batches
                     WHERE medicine_id=:id
                 """),
-                {"id": mid}
+                {
+                    "id": mid
+                }
             )
 
             r = c.execute(
@@ -667,18 +1324,31 @@ def delete_medicine(mid):
                     DELETE FROM medicines
                     WHERE id=:id
                 """),
-                {"id": mid}
+                {
+                    "id": mid
+                }
             )
 
             if r.rowcount == 0:
-                return jsonify(error="Medicine not found"), 404
 
-        log_action("DELETE_MEDICINE", str(mid))
+                return jsonify(
+                    error="Medicine not found"
+                ), 404
 
-        return jsonify(ok=True)
+        log_action(
+            "DELETE_MEDICINE",
+            str(mid)
+        )
+
+        return jsonify(
+            ok=True
+        )
 
     except Exception as e:
-        return jsonify(error=str(e)), 400
+
+        return jsonify(
+            error=str(e)
+        ), 400
 
 
 # =========================================================
@@ -687,10 +1357,15 @@ def delete_medicine(mid):
 
 @app.get("/api/medicines/<int:mid>/batches")
 def medicine_batches(mid):
+
     if not login_required():
-        return jsonify(error="Login required"), 401
+
+        return jsonify(
+            error="Login required"
+        ), 401
 
     with engine.connect() as c:
+
         rows = c.execute(
             text("""
                 SELECT *
@@ -698,10 +1373,14 @@ def medicine_batches(mid):
                 WHERE medicine_id=:mid
                 ORDER BY expiry NULLS LAST, id
             """),
-            {"mid": mid}
+            {
+                "mid": mid
+            }
         ).mappings().all()
 
-    return jsonify([dict(r) for r in rows])
+    return jsonify(
+        [dict(r) for r in rows]
+    )
 
 
 # =========================================================
@@ -710,21 +1389,44 @@ def medicine_batches(mid):
 
 @app.post("/api/purchases")
 def purchase():
+
     if not login_required():
-        return jsonify(error="Login required"), 401
+
+        return jsonify(
+            error="Login required"
+        ), 401
 
     d = request.json or {}
 
     try:
-        mid = int(d["medicine_id"])
-        qty = int(d["quantity"])
+
+        mid = int(
+            d["medicine_id"]
+        )
+
+        qty = int(
+            d["quantity"]
+        )
 
         if qty <= 0:
-            raise ValueError("Quantity must be greater than zero")
 
-        price = float(d.get("purchase_price") or 0)
-        batch = d.get("batch", "")
-        expiry = d.get("expiry", "")
+            raise ValueError(
+                "Quantity must be greater than zero"
+            )
+
+        price = float(
+            d.get("purchase_price") or 0
+        )
+
+        batch = d.get(
+            "batch",
+            ""
+        )
+
+        expiry = d.get(
+            "expiry",
+            ""
+        )
 
         with engine.begin() as c:
 
@@ -735,11 +1437,16 @@ def purchase():
                     WHERE id=:id
                     FOR UPDATE
                 """),
-                {"id": mid}
+                {
+                    "id": mid
+                }
             ).mappings().first()
 
             if not medicine:
-                return jsonify(error="Medicine not found"), 404
+
+                return jsonify(
+                    error="Medicine not found"
+                ), 404
 
             batch_row = c.execute(
                 text("""
@@ -756,13 +1463,16 @@ def purchase():
             ).first()
 
             if batch_row:
+
                 c.execute(
                     text("""
                         UPDATE medicine_batches
                         SET
                             stock=stock+:qty,
                             purchase_price=:price,
-                            expiry=NULLIF(:expiry,'')::date
+                            expiry=NULLIF(
+                                :expiry,''
+                            )::date
                         WHERE id=:id
                     """),
                     {
@@ -776,19 +1486,30 @@ def purchase():
                 batch_id = batch_row[0]
 
             else:
+
                 batch_id = c.execute(
                     text("""
                         INSERT INTO medicine_batches
                         (
-                            medicine_id,batch,expiry,
-                            purchase_price,selling_price,
-                            stock,created_at
+                            medicine_id,
+                            batch,
+                            expiry,
+                            purchase_price,
+                            selling_price,
+                            stock,
+                            created_at
                         )
-                        VALUES(
-                            :mid,:batch,
-                            NULLIF(:expiry,'')::date,
-                            :purchase,:selling,
-                            :qty,:now
+                        VALUES
+                        (
+                            :mid,
+                            :batch,
+                            NULLIF(
+                                :expiry,''
+                            )::date,
+                            :purchase,
+                            :selling,
+                            :qty,
+                            :now
                         )
                         RETURNING id
                     """),
@@ -810,7 +1531,9 @@ def purchase():
                         stock=stock+:qty,
                         purchase=:price,
                         batch=:batch,
-                        expiry=NULLIF(:expiry,'')::date
+                        expiry=NULLIF(
+                            :expiry,''
+                        )::date
                     WHERE id=:id
                 """),
                 {
@@ -826,18 +1549,33 @@ def purchase():
                 text("""
                     INSERT INTO purchases
                     (
-                        medicine_id,supplier,batch,
-                        expiry,quantity,purchase_price,created_at
+                        medicine_id,
+                        supplier,
+                        batch,
+                        expiry,
+                        quantity,
+                        purchase_price,
+                        created_at
                     )
-                    VALUES(
-                        :mid,:supplier,:batch,
-                        NULLIF(:expiry,'')::date,
-                        :qty,:price,:now
+                    VALUES
+                    (
+                        :mid,
+                        :supplier,
+                        :batch,
+                        NULLIF(
+                            :expiry,''
+                        )::date,
+                        :qty,
+                        :price,
+                        :now
                     )
                 """),
                 {
                     "mid": mid,
-                    "supplier": d.get("supplier", ""),
+                    "supplier": d.get(
+                        "supplier",
+                        ""
+                    ),
                     "batch": batch,
                     "expiry": expiry,
                     "qty": qty,
@@ -852,34 +1590,54 @@ def purchase():
                 text("""
                     INSERT INTO stock_movements
                     (
-                        medicine_id,batch_id,
-                        movement_type,quantity,
-                        reference,note,
-                        created_at,username
+                        medicine_id,
+                        batch_id,
+                        movement_type,
+                        quantity,
+                        reference,
+                        note,
+                        created_at,
+                        username
                     )
-                    VALUES(
-                        :mid,:batch_id,
-                        'STOCK_IN',:qty,
-                        'PURCHASE',:supplier,
-                        :now,:username
+                    VALUES
+                    (
+                        :mid,
+                        :batch_id,
+                        'STOCK_IN',
+                        :qty,
+                        'PURCHASE',
+                        :supplier,
+                        :now,
+                        :username
                     )
                 """),
                 {
                     "mid": mid,
                     "batch_id": batch_id,
                     "qty": qty,
-                    "supplier": d.get("supplier", ""),
+                    "supplier": d.get(
+                        "supplier",
+                        ""
+                    ),
                     "now": bd_now_naive(),
                     "username": user["username"]
                 }
             )
 
-        log_action("STOCK_IN", f"Medicine {mid}, Qty {qty}")
+        log_action(
+            "STOCK_IN",
+            f"Medicine {mid}, Qty {qty}"
+        )
 
-        return jsonify(ok=True)
+        return jsonify(
+            ok=True
+        )
 
     except Exception as e:
-        return jsonify(error=str(e)), 400
+
+        return jsonify(
+            error=str(e)
+        ), 400
 
 
 # =========================================================
@@ -888,81 +1646,139 @@ def purchase():
 
 @app.post("/api/sales")
 def sale():
+
     if not login_required():
-        return jsonify(error="Login required"), 401
+
+        return jsonify(
+            error="Login required"
+        ), 401
 
     d = request.json or {}
-    items = d.get("items", [])
+
+    items = d.get(
+        "items",
+        []
+    )
 
     if not items:
-        return jsonify(error="Cart is empty"), 400
 
-    invoice = "INV-" + bd_now().strftime("%Y%m%d%H%M%S%f")
+        return jsonify(
+            error="Cart is empty"
+        ), 400
 
-    discount = float(d.get("discount") or 0)
+    invoice = (
+        "INV-"
+        + bd_now().strftime(
+            "%Y%m%d%H%M%S%f"
+        )
+    )
+
+    discount = float(
+        d.get("discount") or 0
+    )
 
     try:
+
         with engine.begin() as c:
 
             subtotal = 0
+
             checked = []
 
             for item in items:
 
-                mid = int(item["id"])
-                qty = int(item["qty"])
+                mid = int(
+                    item["id"]
+                )
+
+                qty = int(
+                    item["qty"]
+                )
 
                 if qty <= 0:
-                    raise ValueError("Invalid quantity")
+
+                    raise ValueError(
+                        "Invalid quantity"
+                    )
 
                 medicine = c.execute(
                     text("""
-                        SELECT id,name,price,stock
+                        SELECT
+                            id,
+                            name,
+                            price,
+                            stock
                         FROM medicines
                         WHERE id=:id
                         FOR UPDATE
                     """),
-                    {"id": mid}
+                    {
+                        "id": mid
+                    }
                 ).mappings().first()
 
                 if not medicine:
-                    raise ValueError("Medicine not found")
 
-                if qty > medicine["stock"]:
                     raise ValueError(
-                        f"Insufficient stock: {medicine['name']}"
+                        "Medicine not found"
                     )
 
-                subtotal += float(medicine["price"]) * qty
+                if qty > medicine["stock"]:
 
-                checked.append((medicine, qty))
+                    raise ValueError(
+                        f"Insufficient stock: "
+                        f"{medicine['name']}"
+                    )
+
+                subtotal += (
+                    float(medicine["price"])
+                    * qty
+                )
+
+                checked.append(
+                    (medicine, qty)
+                )
 
             if discount < 0:
+
                 discount = 0
 
             if discount > subtotal:
+
                 discount = subtotal
 
-            total = subtotal - discount
+            total = (
+                subtotal
+                - discount
+            )
 
             sid = c.execute(
                 text("""
                     INSERT INTO sales
                     (
-                        invoice,customer,
-                        subtotal,discount,total,
+                        invoice,
+                        customer,
+                        subtotal,
+                        discount,
+                        total,
                         created_at
                     )
-                    VALUES(
-                        :invoice,:customer,
-                        :subtotal,:discount,:total,
+                    VALUES
+                    (
+                        :invoice,
+                        :customer,
+                        :subtotal,
+                        :discount,
+                        :total,
                         :created_at
                     )
                     RETURNING id
                 """),
                 {
                     "invoice": invoice,
-                    "customer": d.get("customer") or "Walk-in",
+                    "customer": d.get(
+                        "customer"
+                    ) or "Walk-in",
                     "subtotal": subtotal,
                     "discount": discount,
                     "total": total,
@@ -976,7 +1792,8 @@ def sale():
 
                 remaining = qty
 
-                # FEFO: sell earliest expiry first
+                # FEFO:
+                # First Expiry, First Out
                 batches = c.execute(
                     text("""
                         SELECT *
@@ -986,7 +1803,9 @@ def sale():
                         ORDER BY expiry NULLS LAST, id
                         FOR UPDATE
                     """),
-                    {"mid": medicine["id"]}
+                    {
+                        "mid": medicine["id"]
+                    }
                 ).mappings().all()
 
                 for batch in batches:
@@ -994,7 +1813,10 @@ def sale():
                     if remaining <= 0:
                         break
 
-                    take = min(remaining, batch["stock"])
+                    take = min(
+                        remaining,
+                        batch["stock"]
+                    )
 
                     c.execute(
                         text("""
@@ -1012,12 +1834,17 @@ def sale():
                         text("""
                             INSERT INTO sale_items
                             (
-                                sale_id,medicine_id,
-                                quantity,price
+                                sale_id,
+                                medicine_id,
+                                quantity,
+                                price
                             )
-                            VALUES(
-                                :sid,:mid,
-                                :qty,:price
+                            VALUES
+                            (
+                                :sid,
+                                :mid,
+                                :qty,
+                                :price
                             )
                         """),
                         {
@@ -1032,16 +1859,25 @@ def sale():
                         text("""
                             INSERT INTO stock_movements
                             (
-                                medicine_id,batch_id,
-                                movement_type,quantity,
-                                reference,note,
-                                created_at,username
+                                medicine_id,
+                                batch_id,
+                                movement_type,
+                                quantity,
+                                reference,
+                                note,
+                                created_at,
+                                username
                             )
-                            VALUES(
-                                :mid,:batch_id,
-                                'SALE',:qty,
-                                :invoice,'',
-                                :now,:username
+                            VALUES
+                            (
+                                :mid,
+                                :batch_id,
+                                'SALE',
+                                :qty,
+                                :invoice,
+                                '',
+                                :now,
+                                :username
                             )
                         """),
                         {
@@ -1057,8 +1893,10 @@ def sale():
                     remaining -= take
 
                 if remaining > 0:
+
                     raise ValueError(
-                        f"Batch stock problem: {medicine['name']}"
+                        f"Batch stock problem: "
+                        f"{medicine['name']}"
                     )
 
                 c.execute(
@@ -1073,7 +1911,10 @@ def sale():
                     }
                 )
 
-        log_action("SALE", invoice)
+        log_action(
+            "SALE",
+            invoice
+        )
 
         return jsonify(
             ok=True,
@@ -1084,9 +1925,13 @@ def sale():
         )
 
     except ValueError as e:
-        return jsonify(error=str(e)), 400
+
+        return jsonify(
+            error=str(e)
+        ), 400
 
     except SQLAlchemyError:
+
         return jsonify(
             error="Sale could not be completed"
         ), 500
@@ -1098,10 +1943,15 @@ def sale():
 
 @app.get("/api/reports/sales")
 def sales_report():
+
     if not login_required():
-        return jsonify(error="Login required"), 401
+
+        return jsonify(
+            error="Login required"
+        ), 401
 
     with engine.connect() as c:
+
         rows = c.execute(
             text("""
                 SELECT *
@@ -1111,13 +1961,19 @@ def sales_report():
             """)
         ).mappings().all()
 
-    return jsonify([dict(r) for r in rows])
+    return jsonify(
+        [dict(r) for r in rows]
+    )
 
 
 @app.get("/api/sales/<invoice>")
 def get_sale(invoice):
+
     if not login_required():
-        return jsonify(error="Login required"), 401
+
+        return jsonify(
+            error="Login required"
+        ), 401
 
     with engine.connect() as c:
 
@@ -1127,11 +1983,16 @@ def get_sale(invoice):
                 FROM sales
                 WHERE invoice=:invoice
             """),
-            {"invoice": invoice}
+            {
+                "invoice": invoice
+            }
         ).mappings().first()
 
         if not sale_row:
-            return jsonify(error="Invoice not found"), 404
+
+            return jsonify(
+                error="Invoice not found"
+            ), 404
 
         items = c.execute(
             text("""
@@ -1145,12 +2006,17 @@ def get_sale(invoice):
                 WHERE si.sale_id=:sid
                 ORDER BY si.id
             """),
-            {"sid": sale_row["id"]}
+            {
+                "sid": sale_row["id"]
+            }
         ).mappings().all()
 
     return jsonify(
         sale=dict(sale_row),
-        items=[dict(x) for x in items]
+        items=[
+            dict(x)
+            for x in items
+        ]
     )
 
 
@@ -1160,12 +2026,17 @@ def get_sale(invoice):
 
 @app.get("/api/reports/stock")
 def stock_report():
+
     if not login_required():
-        return jsonify(error="Login required"), 401
+
+        return jsonify(
+            error="Login required"
+        ), 401
 
     today = bd_today()
 
     with engine.connect() as c:
+
         rows = c.execute(
             text("""
                 SELECT *
@@ -1178,11 +2049,16 @@ def stock_report():
                 ORDER BY expiry NULLS LAST
             """),
             {
-                "future": today + timedelta(days=90)
+                "future": (
+                    today
+                    + timedelta(days=90)
+                )
             }
         ).mappings().all()
 
-    return jsonify([dict(r) for r in rows])
+    return jsonify(
+        [dict(r) for r in rows]
+    )
 
 
 # =========================================================
@@ -1191,10 +2067,15 @@ def stock_report():
 
 @app.get("/api/stock-movements")
 def stock_movements():
+
     if not login_required():
-        return jsonify(error="Login required"), 401
+
+        return jsonify(
+            error="Login required"
+        ), 401
 
     with engine.connect() as c:
+
         rows = c.execute(
             text("""
                 SELECT
@@ -1211,7 +2092,9 @@ def stock_movements():
             """)
         ).mappings().all()
 
-    return jsonify([dict(r) for r in rows])
+    return jsonify(
+        [dict(r) for r in rows]
+    )
 
 
 # =========================================================
@@ -1220,95 +2103,163 @@ def stock_movements():
 
 @app.get("/api/users")
 def users():
+
     if not admin_required():
-        return jsonify(error="Admin access required"), 403
+
+        return jsonify(
+            error="Admin access required"
+        ), 403
 
     with engine.connect() as c:
+
         rows = c.execute(
             text("""
-                SELECT id,username,role,active,created_at
+                SELECT
+                    id,
+                    username,
+                    role,
+                    active,
+                    created_at
                 FROM users
                 ORDER BY username
             """)
         ).mappings().all()
 
-    return jsonify([dict(r) for r in rows])
+    return jsonify(
+        [dict(r) for r in rows]
+    )
 
 
 @app.post("/api/users")
 def add_user():
+
     if not admin_required():
-        return jsonify(error="Admin access required"), 403
+
+        return jsonify(
+            error="Admin access required"
+        ), 403
 
     d = request.json or {}
 
-    username = str(d.get("username", "")).strip()
-    password = str(d.get("password", ""))
-    role = d.get("role", "staff")
+    username = str(
+        d.get("username", "")
+    ).strip()
+
+    password = str(
+        d.get("password", "")
+    )
+
+    role = d.get(
+        "role",
+        "staff"
+    )
 
     if not username or not password:
+
         return jsonify(
             error="Username and password are required"
         ), 400
 
-    if role not in ("admin", "staff"):
+    if len(password) < 8:
+
+        return jsonify(
+            error="Password must be at least 8 characters"
+        ), 400
+
+    if role not in (
+        "admin",
+        "staff"
+    ):
+
         role = "staff"
 
     try:
+
         with engine.begin() as c:
+
             c.execute(
                 text("""
                     INSERT INTO users
                     (
-                        username,password_hash,
-                        role,active,created_at
+                        username,
+                        password_hash,
+                        role,
+                        active,
+                        created_at
                     )
-                    VALUES(
-                        :username,:password,
-                        :role,TRUE,:now
+                    VALUES
+                    (
+                        :username,
+                        :password,
+                        :role,
+                        TRUE,
+                        :now
                     )
                 """),
                 {
                     "username": username,
-                    "password": generate_password_hash(password),
+                    "password": generate_password_hash(
+                        password
+                    ),
                     "role": role,
                     "now": bd_now_naive()
                 }
             )
 
-        log_action("ADD_USER", username)
+        log_action(
+            "ADD_USER",
+            username
+        )
 
-        return jsonify(ok=True)
+        return jsonify(
+            ok=True
+        )
 
     except Exception as e:
-        return jsonify(error=str(e)), 400
+
+        return jsonify(
+            error=str(e)
+        ), 400
 
 
 @app.delete("/api/users/<int:uid>")
 def delete_user(uid):
+
     if not admin_required():
-        return jsonify(error="Admin access required"), 403
+
+        return jsonify(
+            error="Admin access required"
+        ), 403
 
     me_user = current_user()
 
     if uid == me_user["id"]:
+
         return jsonify(
             error="You cannot delete your own account"
         ), 400
 
     with engine.begin() as c:
+
         c.execute(
             text("""
                 UPDATE users
                 SET active=FALSE
                 WHERE id=:id
             """),
-            {"id": uid}
+            {
+                "id": uid
+            }
         )
 
-    log_action("DISABLE_USER", str(uid))
+    log_action(
+        "DISABLE_USER",
+        str(uid)
+    )
 
-    return jsonify(ok=True)
+    return jsonify(
+        ok=True
+    )
 
 
 # =========================================================
@@ -1317,8 +2268,12 @@ def delete_user(uid):
 
 @app.get("/api/backup")
 def backup():
+
     if not admin_required():
-        return jsonify(error="Admin access required"), 403
+
+        return jsonify(
+            error="Admin access required"
+        ), 403
 
     tables = [
         "users",
@@ -1344,7 +2299,9 @@ def backup():
         for table in tables:
 
             rows = c.execute(
-                text(f"SELECT * FROM {table}")
+                text(
+                    f"SELECT * FROM {table}"
+                )
             ).mappings().all()
 
             converted = []
@@ -1355,9 +2312,15 @@ def backup():
 
                 for key, value in dict(row).items():
 
-                    if isinstance(value, (datetime, date)):
+                    if isinstance(
+                        value,
+                        (datetime, date)
+                    ):
+
                         item[key] = value.isoformat()
+
                     else:
+
                         item[key] = value
 
                 converted.append(item)
@@ -1373,11 +2336,16 @@ def backup():
 
     filename = (
         "pharmastock-backup-"
-        + bd_now().strftime("%Y-%m-%d-%H%M%S")
+        + bd_now().strftime(
+            "%Y-%m-%d-%H%M%S"
+        )
         + ".json"
     )
 
-    log_action("BACKUP", filename)
+    log_action(
+        "BACKUP",
+        filename
+    )
 
     return send_file(
         io.BytesIO(data),
@@ -1393,10 +2361,15 @@ def backup():
 
 @app.get("/api/export")
 def export_csv():
+
     if not login_required():
-        return jsonify(error="Login required"), 401
+
+        return jsonify(
+            error="Login required"
+        ), 401
 
     with engine.connect() as c:
+
         rows = c.execute(
             text("""
                 SELECT *
@@ -1406,6 +2379,7 @@ def export_csv():
         ).mappings().all()
 
     out = io.StringIO()
+
     writer = csv.writer(out)
 
     writer.writerow([
@@ -1422,6 +2396,7 @@ def export_csv():
     ])
 
     for r in rows:
+
         writer.writerow([
             r["name"],
             r["generic"],
@@ -1437,7 +2412,9 @@ def export_csv():
 
     return send_file(
         io.BytesIO(
-            out.getvalue().encode("utf-8-sig")
+            out.getvalue().encode(
+                "utf-8-sig"
+            )
         ),
         mimetype="text/csv",
         as_attachment=True,
@@ -1453,7 +2430,13 @@ init_db()
 
 
 if __name__ == "__main__":
+
     app.run(
         host="0.0.0.0",
-        port=int(os.environ.get("PORT", "5000"))
+        port=int(
+            os.environ.get(
+                "PORT",
+                "5000"
+            )
+        )
     )
