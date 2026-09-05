@@ -2,7 +2,6 @@ import os
 import io
 import csv
 import json
-import secrets
 from datetime import datetime, date, timedelta
 from zoneinfo import ZoneInfo
 
@@ -154,50 +153,50 @@ def init_db():
             ADD COLUMN IF NOT EXISTS discount NUMERIC(12,2) DEFAULT 0
         """))
 
-      # Create or reset the initial admin account
-username = os.environ.get("ADMIN_USERNAME", "admin")
-password = os.environ.get("ADMIN_PASSWORD", "admin123")
+        # Create or reset the initial admin account
+        username = os.environ.get("ADMIN_USERNAME", "admin")
+        password = os.environ.get("ADMIN_PASSWORD", "admin123")
 
-existing_admin = conn.execute(
-    text("""
-        SELECT id
-        FROM users
-        WHERE username=:username
-    """),
-    {"username": username}
-).first()
+        existing_admin = conn.execute(
+            text("""
+                SELECT id
+                FROM users
+                WHERE username=:username
+            """),
+            {"username": username}
+        ).first()
 
-if existing_admin:
-    conn.execute(
-        text("""
-            UPDATE users
-            SET
-                password_hash=:password,
-                role='admin',
-                active=TRUE
-            WHERE username=:username
-        """),
-        {
-            "username": username,
-            "password": generate_password_hash(password)
-        }
-    )
-else:
-    conn.execute(
-        text("""
-            INSERT INTO users
-            (username,password_hash,role,active,created_at)
-            VALUES(:username,:password,'admin',TRUE,:now)
-        """),
-        {
-            "username": username,
-            "password": generate_password_hash(password),
-            "now": bd_now_naive()
-        }
-    )
+        if existing_admin:
+            conn.execute(
+                text("""
+                    UPDATE users
+                    SET
+                        password_hash=:password,
+                        role='admin',
+                        active=TRUE
+                    WHERE username=:username
+                """),
+                {
+                    "username": username,
+                    "password": generate_password_hash(password)
+                }
+            )
+        else:
+            conn.execute(
+                text("""
+                    INSERT INTO users
+                    (username,password_hash,role,active,created_at)
+                    VALUES(:username,:password,'admin',TRUE,:now)
+                """),
+                {
+                    "username": username,
+                    "password": generate_password_hash(password),
+                    "now": bd_now_naive()
+                }
+            )
 
-    # Migrate existing medicine records into batch tracking.
-    medicines = conn.execute(
+        # Migrate existing medicine records into batch tracking.
+        medicines = conn.execute(
             text("""
                 SELECT id,batch,expiry,purchase,price,stock
                 FROM medicines
@@ -365,16 +364,11 @@ def me():
 
 @app.route("/")
 def index():
-
-    if not current_user():
-        return render_template("index.html")
-
     return render_template("index.html")
 
 
 @app.get("/health")
 def health():
-
     try:
         with engine.connect() as conn:
             conn.execute(text("SELECT 1"))
@@ -393,7 +387,6 @@ def health():
 
 @app.get("/api/time")
 def api_time():
-
     now = bd_now()
 
     return jsonify(
@@ -410,7 +403,6 @@ def api_time():
 
 @app.get("/api/dashboard")
 def dashboard():
-
     if not login_required():
         return jsonify(error="Login required"), 401
 
@@ -491,7 +483,6 @@ def dashboard():
 
 @app.get("/api/medicines")
 def medicines():
-
     if not login_required():
         return jsonify(error="Login required"), 401
 
@@ -528,7 +519,6 @@ def medicines():
 
 @app.post("/api/medicines")
 def add_medicine():
-
     if not login_required():
         return jsonify(error="Login required"), 401
 
@@ -538,7 +528,6 @@ def add_medicine():
         return jsonify(error="Medicine name is required"), 400
 
     try:
-
         with engine.begin() as c:
 
             mid = c.execute(
@@ -607,14 +596,12 @@ def add_medicine():
 
 @app.put("/api/medicines/<int:mid>")
 def edit_medicine(mid):
-
     if not login_required():
         return jsonify(error="Login required"), 401
 
     d = request.json or {}
 
     try:
-
         with engine.begin() as c:
 
             r = c.execute(
@@ -661,12 +648,10 @@ def edit_medicine(mid):
 
 @app.delete("/api/medicines/<int:mid>")
 def delete_medicine(mid):
-
     if not admin_required():
         return jsonify(error="Admin access required"), 403
 
     try:
-
         with engine.begin() as c:
 
             c.execute(
@@ -702,12 +687,10 @@ def delete_medicine(mid):
 
 @app.get("/api/medicines/<int:mid>/batches")
 def medicine_batches(mid):
-
     if not login_required():
         return jsonify(error="Login required"), 401
 
     with engine.connect() as c:
-
         rows = c.execute(
             text("""
                 SELECT *
@@ -727,14 +710,12 @@ def medicine_batches(mid):
 
 @app.post("/api/purchases")
 def purchase():
-
     if not login_required():
         return jsonify(error="Login required"), 401
 
     d = request.json or {}
 
     try:
-
         mid = int(d["medicine_id"])
         qty = int(d["quantity"])
 
@@ -775,7 +756,6 @@ def purchase():
             ).first()
 
             if batch_row:
-
                 c.execute(
                     text("""
                         UPDATE medicine_batches
@@ -796,7 +776,6 @@ def purchase():
                 batch_id = batch_row[0]
 
             else:
-
                 batch_id = c.execute(
                     text("""
                         INSERT INTO medicine_batches
@@ -909,7 +888,6 @@ def purchase():
 
 @app.post("/api/sales")
 def sale():
-
     if not login_required():
         return jsonify(error="Login required"), 401
 
@@ -924,7 +902,6 @@ def sale():
     discount = float(d.get("discount") or 0)
 
     try:
-
         with engine.begin() as c:
 
             subtotal = 0
@@ -958,9 +935,7 @@ def sale():
 
                 subtotal += float(medicine["price"]) * qty
 
-                checked.append(
-                    (medicine, qty)
-                )
+                checked.append((medicine, qty))
 
             if discount < 0:
                 discount = 0
@@ -1019,10 +994,7 @@ def sale():
                     if remaining <= 0:
                         break
 
-                    take = min(
-                        remaining,
-                        batch["stock"]
-                    )
+                    take = min(remaining, batch["stock"])
 
                     c.execute(
                         text("""
@@ -1126,12 +1098,10 @@ def sale():
 
 @app.get("/api/reports/sales")
 def sales_report():
-
     if not login_required():
         return jsonify(error="Login required"), 401
 
     with engine.connect() as c:
-
         rows = c.execute(
             text("""
                 SELECT *
@@ -1146,7 +1116,6 @@ def sales_report():
 
 @app.get("/api/sales/<invoice>")
 def get_sale(invoice):
-
     if not login_required():
         return jsonify(error="Login required"), 401
 
@@ -1191,14 +1160,12 @@ def get_sale(invoice):
 
 @app.get("/api/reports/stock")
 def stock_report():
-
     if not login_required():
         return jsonify(error="Login required"), 401
 
     today = bd_today()
 
     with engine.connect() as c:
-
         rows = c.execute(
             text("""
                 SELECT *
@@ -1224,12 +1191,10 @@ def stock_report():
 
 @app.get("/api/stock-movements")
 def stock_movements():
-
     if not login_required():
         return jsonify(error="Login required"), 401
 
     with engine.connect() as c:
-
         rows = c.execute(
             text("""
                 SELECT
@@ -1255,12 +1220,10 @@ def stock_movements():
 
 @app.get("/api/users")
 def users():
-
     if not admin_required():
         return jsonify(error="Admin access required"), 403
 
     with engine.connect() as c:
-
         rows = c.execute(
             text("""
                 SELECT id,username,role,active,created_at
@@ -1274,7 +1237,6 @@ def users():
 
 @app.post("/api/users")
 def add_user():
-
     if not admin_required():
         return jsonify(error="Admin access required"), 403
 
@@ -1293,9 +1255,7 @@ def add_user():
         role = "staff"
 
     try:
-
         with engine.begin() as c:
-
             c.execute(
                 text("""
                     INSERT INTO users
@@ -1326,7 +1286,6 @@ def add_user():
 
 @app.delete("/api/users/<int:uid>")
 def delete_user(uid):
-
     if not admin_required():
         return jsonify(error="Admin access required"), 403
 
@@ -1338,7 +1297,6 @@ def delete_user(uid):
         ), 400
 
     with engine.begin() as c:
-
         c.execute(
             text("""
                 UPDATE users
@@ -1359,7 +1317,6 @@ def delete_user(uid):
 
 @app.get("/api/backup")
 def backup():
-
     if not admin_required():
         return jsonify(error="Admin access required"), 403
 
@@ -1400,7 +1357,6 @@ def backup():
 
                     if isinstance(value, (datetime, date)):
                         item[key] = value.isoformat()
-
                     else:
                         item[key] = value
 
@@ -1437,12 +1393,10 @@ def backup():
 
 @app.get("/api/export")
 def export_csv():
-
     if not login_required():
         return jsonify(error="Login required"), 401
 
     with engine.connect() as c:
-
         rows = c.execute(
             text("""
                 SELECT *
@@ -1452,7 +1406,6 @@ def export_csv():
         ).mappings().all()
 
     out = io.StringIO()
-
     writer = csv.writer(out)
 
     writer.writerow([
@@ -1469,7 +1422,6 @@ def export_csv():
     ])
 
     for r in rows:
-
         writer.writerow([
             r["name"],
             r["generic"],
