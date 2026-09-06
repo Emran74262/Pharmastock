@@ -221,6 +221,27 @@ setInterval(updateClock, 1000);
    DASHBOARD
 ========================= */
 
+let dashboardLowStock = [];
+
+async function editLowStockMedicine(id) {
+  const medicine = dashboardLowStock.find(m => Number(m.id) === Number(id));
+
+  if (medicine) {
+    openMed(medicine);
+    return;
+  }
+
+  try {
+    const r = await fetch("/api/medicines?q=");
+    if (!r.ok) return;
+    const allMeds = await r.json();
+    const found = allMeds.find(m => Number(m.id) === Number(id));
+    if (found) openMed(found);
+  } catch (e) {
+    console.error("Could not open medicine editor:", e);
+  }
+}
+
 async function loadDash() {
   try {
     const r = await fetch("/api/dashboard");
@@ -243,31 +264,56 @@ async function loadDash() {
       $("nearExpiry").textContent = d.near_expiry || 0;
     }
 
-    if ($("dashboardTime")) {
-      $("dashboardTime").textContent =
-        new Intl.DateTimeFormat("en-BD", {
-          timeZone: "Asia/Dhaka",
-          dateStyle: "medium",
-          timeStyle: "medium"
-        }).format(new Date());
-    }
-
     if ($("dashboardAlerts")) {
-      let alerts = [];
+      try {
+        const medsResponse = await fetch("/api/medicines?q=");
 
-      if (d.low > 0)
-        alerts.push(`⚠️ ${d.low} medicine(s) have low stock.`);
+        if (medsResponse.status === 401) {
+          showLogin();
+          return;
+        }
 
-      if (d.expired > 0)
-        alerts.push(`🔴 ${d.expired} medicine(s) are expired.`);
+        const allMeds = await medsResponse.json();
+        dashboardLowStock = allMeds.filter(m =>
+          Number(m.stock) <= Number(m.min_stock)
+        );
 
-      if (d.near_expiry > 0)
-        alerts.push(`🟠 ${d.near_expiry} medicine(s) are near expiry.`);
+        let alerts = [];
 
-      $("dashboardAlerts").innerHTML =
-        alerts.length
-          ? alerts.map(x => `<div class="msg">${x}</div>`).join("")
-          : '<div class="msg">✓ No stock alerts.</div>';
+        if (dashboardLowStock.length) {
+          alerts.push(`
+            <div class="stock-alert-list">
+              ${dashboardLowStock.map(m => `
+                <div class="stock-alert-item">
+                  <div class="stock-alert-info">
+                    <b>${esc(m.name)}</b>
+                    <span>Stock: ${esc(m.stock)} — Minimum: ${esc(m.min_stock)}</span>
+                  </div>
+                  <button type="button" onclick="editLowStockMedicine(${Number(m.id)})">
+                    ✏️ Edit
+                  </button>
+                </div>
+              `).join("")}
+            </div>
+          `);
+        }
+
+        if (d.expired > 0)
+          alerts.push(`<div class="msg">🔴 ${d.expired} medicine(s) are expired.</div>`);
+
+        if (d.near_expiry > 0)
+          alerts.push(`<div class="msg">🟠 ${d.near_expiry} medicine(s) are near expiry.</div>`);
+
+        $("dashboardAlerts").innerHTML =
+          alerts.length
+            ? alerts.join("")
+            : '<div class="msg">✓ No stock alerts.</div>';
+
+      } catch (e) {
+        console.error("Stock alerts error:", e);
+        $("dashboardAlerts").innerHTML =
+          '<div class="msg error">Could not load stock alerts.</div>';
+      }
     }
 
   } catch (e) {

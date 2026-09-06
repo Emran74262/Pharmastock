@@ -369,3 +369,14 @@ body.dark .error{color:#ff8c8c}
 body.dark .btn-small.danger{color:#ff9d95;border-color:#713c37;background:#2b1715}
 body.dark .btn-small.danger:hover{background:#3b1d1a}
 @media(max-width:900px){.report-actions{white-space:normal}.btn-small{display:inline-block}}
+
+/* DASHBOARD STOCK ALERTS */
+.stock-alert-list{display:flex;flex-direction:column;gap:10px}
+.stock-alert-item{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:12px 14px;border:1px solid var(--border);border-radius:12px;background:var(--surface-2)}
+.stock-alert-info{display:flex;flex-direction:column;gap:4px;min-width:0}
+.stock-alert-info b{font-size:14px}
+.stock-alert-info span{font-size:12px;color:var(--muted)}
+.stock-alert-item button{white-space:nowrap}
+@media (max-width:700px){
+  .stock-alert-item{align-items:flex-start;flex-direction:column}
+}
