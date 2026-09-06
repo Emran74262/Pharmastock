@@ -200,12 +200,20 @@ function updateClock() {
     year: "numeric"
   }).format(now);
 
+  if ($("bdClockDate")) {
+    $("bdClockDate").textContent = `Date : ${date}`;
+  }
+
+  if ($("bdClockTime")) {
+    $("bdClockTime").textContent = `Time : ${time}`;
+  }
+
   if ($("bdClock")) {
-    $("bdClock").textContent = `${date} ${time}`;
+    $("bdClock").textContent = `Date : ${date} | Time : ${time}`;
   }
 
   if ($("currentTime")) {
-    $("currentTime").textContent = `${date} ${time}`;
+    $("currentTime").textContent = `Date : ${date} | Time : ${time}`;
   }
 }
 
@@ -273,6 +281,21 @@ async function loadDash() {
    MEDICINES
 ========================= */
 
+function normalizeDateInput(value) {
+  if (!value) return "";
+  const s = String(value);
+  const iso = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (iso) return `${iso[1]}-${iso[2]}-${iso[3]}`;
+  return "";
+}
+
+function formatDateBD(value) {
+  const iso = normalizeDateInput(value);
+  if (!iso) return "—";
+  const [y, m, d] = iso.split("-");
+  return `${d}/${m}/${y}`;
+}
+
 async function loadMeds() {
   try {
     const search = $("search")?.value || "";
@@ -288,15 +311,17 @@ async function loadMeds() {
 
     meds = await r.json();
 
-    const today = new Date();
+    const todayIso = new Intl.DateTimeFormat("en-CA", {
+      timeZone: "Asia/Dhaka",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit"
+    }).format(new Date());
 
     let rows = meds.map(m => {
 
-      const expiry = m.expiry
-        ? new Date(m.expiry)
-        : null;
-
-      const ex = expiry && expiry < today;
+      const expiryIso = normalizeDateInput(m.expiry);
+      const ex = expiryIso && expiryIso < todayIso;
       const low = Number(m.stock) <= Number(m.min_stock);
 
       return `
@@ -312,7 +337,7 @@ async function loadMeds() {
           <td>${esc(m.batch || "")}</td>
 
           <td class="${ex ? "expired" : ""}">
-            ${m.expiry || "—"}
+            ${formatDateBD(m.expiry)}
           </td>
 
           <td>${money(m.purchase)}</td>
@@ -380,14 +405,18 @@ function openMed(m = null) {
     "batch",
     "expiry"
   ].forEach(k => {
-    if ($(k)) $(k).value = m?.[k] || "";
+    if ($(k)) {
+      $(k).value = k === "expiry"
+        ? normalizeDateInput(m?.[k])
+        : (m?.[k] || "");
+    }
   });
 
   if ($("purchase"))
-    $("purchase").value = m?.purchase || "";
+    $("purchase").value = m?.purchase ?? "";
 
   if ($("price"))
-    $("price").value = m?.price || "";
+    $("price").value = m?.price ?? "";
 
   if ($("medstock"))
     $("medstock").value = m?.stock ?? "";

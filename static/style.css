@@ -351,3 +351,10 @@ body.dark .error{color:#ff8c8c}
 .field-label{display:block;font-size:13px;font-weight:700;color:var(--text);line-height:1.2}
 .login-box .field-label{color:var(--text)}
 .login-box>input + .field-label{margin-top:0}
+
+/* Header Bangladesh clock: keep Asia/Dhaka time, but show Date and Time separately. */
+#bdClock.bd-clock{display:flex;align-items:center;gap:10px;white-space:nowrap}
+#bdClockDate,#bdClockTime{display:inline-block}
+@media (max-width:700px){
+  #bdClock.bd-clock{flex-direction:column;align-items:flex-start;gap:2px}
+}

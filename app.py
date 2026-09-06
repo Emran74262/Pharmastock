@@ -3,6 +3,7 @@ import io
 import csv
 import json
 from datetime import datetime, date, timedelta
+from decimal import Decimal
 from zoneinfo import ZoneInfo
 
 from flask import (
@@ -1046,9 +1047,27 @@ def medicines():
                 """)
             ).mappings().all()
 
-    return jsonify(
-        [dict(r) for r in rows]
-    )
+    result = []
+
+    for r in rows:
+
+        item = dict(r)
+
+        # Return dates as ISO date-only strings.  Never expose Python/HTTP
+        # date strings such as "Sun, 07 Jan 2029 00:00:00 GMT" to the UI.
+        if isinstance(item.get("expiry"), date):
+            item["expiry"] = item["expiry"].isoformat()
+
+        # Keep purchase and selling prices as separate numeric values.
+        # This prevents the UI from accidentally treating selling price as
+        # the purchase price.
+        for key in ("purchase", "price"):
+            if isinstance(item.get(key), Decimal):
+                item[key] = float(item[key])
+
+        result.append(item)
+
+    return jsonify(result)
 
 
 @app.post("/api/medicines")
@@ -1285,6 +1304,77 @@ def edit_medicine(mid):
                 return jsonify(
                     error="Medicine not found"
                 ), 404
+
+            # Keep the active/legacy batch record synchronized with the
+            # medicine record.  This is important because sales and stock
+            # features use medicine_batches for batch-level pricing/expiry.
+            batch_name = d.get("batch", "")
+            batch_row = c.execute(
+                text("""
+                    SELECT id
+                    FROM medicine_batches
+                    WHERE medicine_id=:mid
+                    AND batch=:batch
+                    ORDER BY id
+                    LIMIT 1
+                    FOR UPDATE
+                """),
+                {
+                    "mid": mid,
+                    "batch": batch_name
+                }
+            ).first()
+
+            purchase_value = float(d.get("purchase") or 0)
+            selling_value = float(d.get("price") or 0)
+            stock_value = int(d.get("stock") or 0)
+
+            if batch_row:
+
+                c.execute(
+                    text("""
+                        UPDATE medicine_batches
+                        SET
+                            expiry=NULLIF(:expiry,'')::date,
+                            purchase_price=:purchase,
+                            selling_price=:selling,
+                            stock=:stock
+                        WHERE id=:id
+                    """),
+                    {
+                        "expiry": d.get("expiry", ""),
+                        "purchase": purchase_value,
+                        "selling": selling_value,
+                        "stock": stock_value,
+                        "id": batch_row[0]
+                    }
+                )
+
+            elif stock_value > 0:
+
+                c.execute(
+                    text("""
+                        INSERT INTO medicine_batches
+                        (
+                            medicine_id, batch, expiry, purchase_price,
+                            selling_price, stock, created_at
+                        )
+                        VALUES
+                        (
+                            :mid, :batch, NULLIF(:expiry,'')::date,
+                            :purchase, :selling, :stock, :now
+                        )
+                    """),
+                    {
+                        "mid": mid,
+                        "batch": batch_name,
+                        "expiry": d.get("expiry", ""),
+                        "purchase": purchase_value,
+                        "selling": selling_value,
+                        "stock": stock_value,
+                        "now": bd_now_naive()
+                    }
+                )
 
         log_action(
             "EDIT_MEDICINE",
