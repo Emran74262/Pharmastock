@@ -56,33 +56,58 @@ button{cursor:pointer}
   display:flex;
   align-items:center;
   justify-content:center;
-  padding:24px;
+  padding:30px 20px;
+  position:relative;
+  overflow:hidden;
   background:
-    radial-gradient(circle at 20% 20%,rgba(100,220,75,.22),transparent 30%),
-    radial-gradient(circle at 85% 80%,rgba(22,135,238,.15),transparent 30%),
-    var(--bg);
+    radial-gradient(circle at 15% 15%,rgba(35,185,95,.20),transparent 32%),
+    radial-gradient(circle at 85% 85%,rgba(22,135,238,.14),transparent 32%),
+    linear-gradient(135deg,var(--bg),var(--surface-2));
 }
+.login-page:before,.login-page:after{
+  content:"";position:absolute;border-radius:50%;pointer-events:none;
+  border:1px solid rgba(35,185,95,.10);
+}
+.login-page:before{width:420px;height:420px;top:-220px;right:-160px}
+.login-page:after{width:360px;height:360px;bottom:-210px;left:-150px}
 .login-box{
-  width:min(420px,94vw);
-  padding:38px;
-  background:var(--surface);
+  width:min(440px,94vw);
+  padding:38px 40px 30px;
+  position:relative;z-index:1;
+  background:color-mix(in srgb,var(--surface) 94%,transparent);
   border:1px solid var(--border);
-  border-radius:24px;
-  box-shadow:var(--shadow);
+  border-radius:28px;
+  box-shadow:0 24px 70px rgba(15,23,42,.16);
   text-align:center;
+  backdrop-filter:blur(12px);
 }
-.login-logo{
-  width:70px;height:70px;margin:0 auto 16px;
+.login-brand-mark{
+  width:76px;height:76px;margin:0 auto 14px;
   display:grid;place-items:center;
-  border-radius:20px;
-  font-size:36px;
-  background:linear-gradient(145deg,#bdf59e,#23b95f);
-  box-shadow:0 10px 25px rgba(35,185,95,.25);
+  border-radius:24px;font-size:39px;
+  background:linear-gradient(145deg,#c8f7ad,#23b95f);
+  box-shadow:0 14px 32px rgba(35,185,95,.28);
+  border:4px solid rgba(255,255,255,.65);
 }
-.login-box h1{margin:0;font-size:30px;font-weight:800}
-.login-box>p{color:var(--muted);margin:8px 0 24px}
+.login-kicker{font-size:11px;font-weight:800;letter-spacing:2px;color:#159447;margin-bottom:5px}
+.login-box h1{margin:0;font-size:32px;font-weight:850;letter-spacing:-.6px}
+.login-box>p{color:var(--muted);margin:7px 0 20px;font-size:14px}
+.login-divider{display:flex;align-items:center;gap:10px;margin:0 0 20px;color:var(--muted);font-size:11px}
+.login-divider span{height:1px;flex:1;background:var(--border)}
+.login-divider b{font-weight:700;white-space:nowrap}
 .login-box input{width:100%;margin:7px 0}
-.login-btn{width:100%;margin-top:10px}
+.password-field{position:relative;width:100%}
+.password-field input{padding-right:48px}
+.password-toggle{
+  position:absolute;right:8px;top:50%;transform:translateY(-50%);
+  width:36px;height:36px;padding:0;border:0;border-radius:10px;
+  display:grid;place-items:center;background:transparent;color:var(--muted);
+}
+.password-toggle:hover{background:var(--surface-2);color:var(--text)}
+.password-toggle:focus-visible{outline:2px solid #23b95f;outline-offset:2px}
+.login-btn{width:100%;margin-top:13px;min-height:48px;font-weight:800;letter-spacing:.1px;box-shadow:0 10px 24px rgba(35,185,95,.18)}
+.login-btn span{margin-right:6px}
+.login-security{margin-top:16px;font-size:11px;color:var(--muted)}
 
 /* APP SHELL */
 #app{min-height:100vh}

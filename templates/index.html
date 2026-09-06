@@ -17,25 +17,34 @@
 
   <div class="login-box">
 
-    <div class="login-logo">💊</div>
+    <div class="login-brand-mark">💊</div>
 
+    <div class="login-kicker">PHARMACY MANAGEMENT</div>
     <h1>PharmaStock</h1>
+    <p>Secure Pharmacy Management System</p>
 
-    <p>Pharmacy Management System</p>
+    <div class="login-divider"><span></span><b>Sign in to continue</b><span></span></div>
 
     <label class="field-label" for="loginUsername">Username</label>
     <input id="loginUsername"
            autocomplete="username">
 
     <label class="field-label" for="loginPassword">Password</label>
-    <input id="loginPassword"
-           type="password"
-           autocomplete="current-password">
+    <div class="password-field">
+      <input id="loginPassword"
+             type="password"
+             autocomplete="current-password">
+      <button type="button" class="password-toggle" onclick="toggleLoginPassword()" aria-label="Show password" title="Show password">
+        <span id="loginPasswordEye">👁️</span>
+      </button>
+    </div>
 
     <button class="primary login-btn"
             onclick="login()">
-      Login
+      <span>🔐</span> Login Securely
     </button>
+
+    <div class="login-security">🛡️ Secure access for authorized pharmacy staff</div>
 
     <div id="loginMsg"></div>
 

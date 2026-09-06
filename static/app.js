@@ -96,6 +96,22 @@ function showApp() {
   loadMeds();
 }
 
+function toggleLoginPassword() {
+  const input = $("loginPassword");
+  const eye = $("loginPasswordEye");
+  const button = document.querySelector(".password-toggle");
+  if (!input) return;
+
+  const visible = input.type === "text";
+  input.type = visible ? "password" : "text";
+
+  if (eye) eye.textContent = visible ? "👁️" : "🙈";
+  if (button) {
+    button.setAttribute("aria-label", visible ? "Show password" : "Hide password");
+    button.setAttribute("title", visible ? "Show password" : "Hide password");
+  }
+}
+
 async function login() {
   const username = $("loginUsername").value.trim();
   const password = $("loginPassword").value;
