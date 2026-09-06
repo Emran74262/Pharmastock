@@ -208,10 +208,6 @@ function updateClock() {
     $("bdClockTime").textContent = `Time : ${time}`;
   }
 
-  if ($("bdClock")) {
-    $("bdClock").textContent = `Date : ${date} | Time : ${time}`;
-  }
-
   if ($("currentTime")) {
     $("currentTime").textContent = `Date : ${date} | Time : ${time}`;
   }
@@ -283,9 +279,25 @@ async function loadDash() {
 
 function normalizeDateInput(value) {
   if (!value) return "";
-  const s = String(value);
+  const s = String(value).trim();
+
+  // Native date inputs and the API use ISO date-only values.
   const iso = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
   if (iso) return `${iso[1]}-${iso[2]}-${iso[3]}`;
+
+  // Accept DD/MM/YYYY without passing it through JavaScript Date parsing.
+  const dmy = s.match(/^(\d{2})[\/.-](\d{2})[\/.-](\d{4})$/);
+  if (dmy) return `${dmy[3]}-${dmy[2]}-${dmy[1]}`;
+
+  // Legacy API values such as "Sun, 07 Jan 2029 00:00:00 GMT".
+  // Read the calendar date directly so the browser timezone cannot shift it.
+  const legacy = s.match(/^(?:\w{3},\s*)?(\d{1,2})\s+([A-Za-z]{3})\s+(\d{4})/);
+  if (legacy) {
+    const months = {Jan:"01",Feb:"02",Mar:"03",Apr:"04",May:"05",Jun:"06",Jul:"07",Aug:"08",Sep:"09",Oct:"10",Nov:"11",Dec:"12"};
+    const mm = months[legacy[2]];
+    if (mm) return `${legacy[3]}-${mm}-${String(legacy[1]).padStart(2, "0")}`;
+  }
+
   return "";
 }
 
@@ -412,8 +424,8 @@ function openMed(m = null) {
     }
   });
 
-  if ($("purchase"))
-    $("purchase").value = m?.purchase ?? "";
+  if ($("medPurchase"))
+    $("medPurchase").value = m?.purchase ?? "";
 
   if ($("price"))
     $("price").value = m?.price ?? "";
@@ -443,7 +455,7 @@ async function saveMed() {
     category: $("category").value,
     batch: $("batch").value,
     expiry: $("expiry").value,
-    purchase: $("purchase").value,
+    purchase: $("medPurchase").value,
     price: $("price").value,
     stock: $("medstock").value,
     min_stock: $("minstock").value
@@ -709,7 +721,7 @@ async function printInvoice(invoice) {
 
     const rows = items.map(item => {
       const lineTotal = Number(item.quantity || 0) * Number(item.price || 0);
-      const expiry = item.expiry ? new Date(item.expiry).toLocaleDateString("en-GB") : "—";
+      const expiry = formatDateBD(item.expiry);
       return `
         <tr>
           <td>
@@ -968,13 +980,13 @@ async function loadReports() {
 
               ${stock.map(x => {
 
-                const expiry =
-                  x.expiry
-                    ? new Date(x.expiry)
-                    : null;
+                const expiryIso = normalizeDateInput(x.expiry);
 
                 const expired =
-                  expiry && expiry < new Date();
+                  expiryIso && expiryIso < new Intl.DateTimeFormat("en-CA", {
+                    timeZone: "Asia/Dhaka",
+                    year: "numeric", month: "2-digit", day: "2-digit"
+                  }).format(new Date());
 
                 const low =
                   Number(x.stock) <=
@@ -989,7 +1001,7 @@ async function loadReports() {
                     </td>
 
                     <td class="${expired ? "expired" : ""}">
-                      ${x.expiry || "—"}
+                      ${formatDateBD(x.expiry)}
                     </td>
                   </tr>
                 `;
