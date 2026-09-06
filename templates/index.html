@@ -60,6 +60,7 @@
     ◀ Hide Sidebar
   </button>
 
+  <div class="sidebar-nav-scroll">
   <button class="nav active"
           onclick="show('dashboard',this)">
     🏠 Dashboard
@@ -114,14 +115,10 @@
     ⚙️ Settings
   </button>
 
+  </div>
+
   <div class="sidefoot">
-
-    <button onclick="logout()">
-      Logout
-    </button>
-
     <small>PharmaStock v2.0</small>
-
   </div>
 
 </div>
@@ -141,6 +138,10 @@
   </div>
 
   <div class="header-actions">
+
+    <button type="button" class="header-logout" onclick="logout()">
+      🚪 Logout
+    </button>
 
     <span id="bdClock" class="bd-clock">
       <span id="bdClockDate">Date : --/--/----</span>
