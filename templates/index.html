@@ -84,6 +84,11 @@
     📊 Reports
   </button>
 
+  <button class="nav"
+          onclick="show('deletedInvoices',this)">
+    🗑️ Deleted Invoices
+  </button>
+
   <button id="usersNav"
           class="nav admin-only"
           onclick="show('users',this)">
@@ -498,6 +503,29 @@
       <div id="stockReport"></div>
 
     </div>
+
+  </div>
+
+</section>
+
+
+<!-- DELETED INVOICES -->
+
+<section id="deletedInvoices"
+         class="page hidden">
+
+  <div class="panel">
+
+    <h2>🗑️ Deleted Invoices</h2>
+
+    <p>Deleted invoices are kept here as backups for 60 days. Restore them to return them to Invoice History, or delete them permanently.</p>
+
+    <div class="field report-search">
+      <label class="field-label" for="deletedInvoiceSearch">Search Deleted Invoices</label>
+      <input id="deletedInvoiceSearch" type="search" oninput="filterDeletedInvoices()">
+    </div>
+
+    <div id="deletedInvoicesReport"></div>
 
   </div>
 

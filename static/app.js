@@ -158,6 +158,7 @@ function show(id, btn) {
     purchase: "Stock In",
     movements: "Stock History",
     reports: "Reports",
+    deletedInvoices: "Deleted Invoices",
     users: "Users",
     backup: "Backup"
   };
@@ -175,6 +176,7 @@ function show(id, btn) {
   if (id === "purchase") loadMeds();
   if (id === "movements") loadMovements();
   if (id === "reports") loadReports();
+  if (id === "deletedInvoices") loadDeletedInvoices();
   if (id === "users") loadUsers();
 }
 
@@ -975,7 +977,7 @@ function filterSalesReport() {
 }
 
 async function deleteInvoice(invoice) {
-  if (!confirm(`Delete invoice ${invoice}? The sold stock will be restored.`)) return;
+  if (!confirm(`Move invoice ${invoice} to Deleted Invoices? Its stock will be restored and the backup will be kept for 60 days.`)) return;
 
   try {
     const r = await fetch("/api/sales/" + encodeURIComponent(invoice), { method: "DELETE" });
@@ -989,9 +991,147 @@ async function deleteInvoice(invoice) {
     renderSalesReport();
     loadMeds();
     loadDash();
-    alert("Invoice deleted successfully.");
+    alert("Invoice moved to Deleted Invoices. It will be kept for 60 days unless restored.");
   } catch (e) {
     alert("Invoice could not be deleted.");
+  }
+}
+
+let deletedInvoiceData = [];
+
+function renderDeletedInvoices() {
+  if (!$('deletedInvoicesReport')) return;
+
+  const query = String($('deletedInvoiceSearch')?.value || '').trim().toLowerCase();
+  const filtered = deletedInvoiceData.filter(x => {
+    return !query ||
+      String(x.invoice || '').toLowerCase().includes(query) ||
+      String(x.customer || '').toLowerCase().includes(query) ||
+      String(x.mobile || '').toLowerCase().includes(query);
+  });
+
+  const today = new Date();
+  const html = filtered.length ? `
+    <table>
+      <tr>
+        <th>Invoice</th>
+        <th>Customer</th>
+        <th>Mobile</th>
+        <th>Total</th>
+        <th>Deleted On</th>
+        <th>Expires</th>
+        <th>Actions</th>
+      </tr>
+      ${filtered.map(x => {
+        const deleted = new Date(String(x.deleted_at || '').replace(' ', 'T'));
+        const expiry = new Date(deleted.getTime() + 60 * 24 * 60 * 60 * 1000);
+        const daysLeft = Math.max(0, Math.ceil((expiry - today) / (24 * 60 * 60 * 1000)));
+        return `
+          <tr>
+            <td>${esc(x.invoice || '')}</td>
+            <td>${esc(x.customer || '')}</td>
+            <td>${esc(x.mobile || '')}</td>
+            <td>${money(x.total)}</td>
+            <td>${esc(String(x.deleted_at || '').replace('T', ' '))}</td>
+            <td>${daysLeft} day${daysLeft === 1 ? '' : 's'}</td>
+            <td class="report-actions">
+              <button class="btn-small" onclick="printDeletedInvoice('${esc(x.invoice)}')">🖨️ Backup / Print</button>
+              <button class="btn-small" onclick="restoreDeletedInvoice('${esc(x.invoice)}')">↩️ Restore</button>
+              <button class="btn-small danger" onclick="permanentlyDeleteInvoice('${esc(x.invoice)}')">🗑️ Delete Permanently</button>
+            </td>
+          </tr>`;
+      }).join('')}
+    </table>` : 'No deleted invoices.';
+
+  $('deletedInvoicesReport').innerHTML = html;
+}
+
+function filterDeletedInvoices() {
+  renderDeletedInvoices();
+}
+
+async function loadDeletedInvoices() {
+  try {
+    const r = await fetch('/api/deleted-invoices');
+    if (!r.ok) {
+      $('deletedInvoicesReport').innerHTML = '<div class="msg error">Could not load deleted invoices.</div>';
+      return;
+    }
+    deletedInvoiceData = await r.json();
+    renderDeletedInvoices();
+  } catch (e) {
+    $('deletedInvoicesReport').innerHTML = '<div class="msg error">Could not load deleted invoices.</div>';
+  }
+}
+
+async function restoreDeletedInvoice(invoice) {
+  if (!confirm(`Restore invoice ${invoice}? The stock will be deducted again.`)) return;
+  try {
+    const r = await fetch('/api/deleted-invoices/' + encodeURIComponent(invoice) + '/restore', { method: 'POST' });
+    const j = await r.json();
+    if (!r.ok) {
+      alert(j.error || 'Invoice could not be restored.');
+      return;
+    }
+    await loadDeletedInvoices();
+    await loadReports();
+    loadMeds();
+    loadDash();
+    alert('Invoice restored successfully.');
+  } catch (e) {
+    alert('Invoice could not be restored.');
+  }
+}
+
+async function permanentlyDeleteInvoice(invoice) {
+  if (!confirm(`Permanently delete invoice ${invoice}? This backup cannot be restored afterward.`)) return;
+  try {
+    const r = await fetch('/api/deleted-invoices/' + encodeURIComponent(invoice), { method: 'DELETE' });
+    const j = await r.json();
+    if (!r.ok) {
+      alert(j.error || 'Invoice could not be permanently deleted.');
+      return;
+    }
+    await loadDeletedInvoices();
+    alert('Invoice permanently deleted.');
+  } catch (e) {
+    alert('Invoice could not be permanently deleted.');
+  }
+}
+
+async function printDeletedInvoice(invoice) {
+  try {
+    const r = await fetch('/api/deleted-invoices/' + encodeURIComponent(invoice));
+    if (!r.ok) {
+      alert('Deleted invoice backup could not be loaded.');
+      return;
+    }
+    const sale = await r.json();
+    const items = sale.items || [];
+    const rows = items.map(item => `
+      <tr>
+        <td><strong>${esc(item.name || '')}</strong>${item.generic ? `<div class="sub">${esc(item.generic)}</div>` : ''}</td>
+        <td>${esc(item.batch || '—')}</td>
+        <td>${formatDateBD(item.expiry)}</td>
+        <td class="num">${item.quantity || 0}</td>
+        <td class="num">${money(item.price)}</td>
+        <td class="num"><strong>${money(Number(item.quantity || 0) * Number(item.price || 0))}</strong></td>
+      </tr>`).join('');
+
+    const win = window.open('', '_blank', 'width=900,height=800');
+    if (!win) {
+      alert('Please allow pop-ups to print the invoice backup.');
+      return;
+    }
+    const subtotal = Number(sale.subtotal || 0);
+    const discount = Number(sale.discount || 0);
+    const total = Number(sale.total || 0);
+    win.document.write(`<!doctype html><html><head><title>${esc(sale.invoice || 'Deleted Invoice')}</title><style>
+      body{font-family:Arial,sans-serif;margin:32px;color:#222}h1{margin:0 0 6px}.meta{margin:4px 0}.sub{font-size:12px;color:#666;margin-top:3px}table{width:100%;border-collapse:collapse;margin-top:24px}th,td{border:1px solid #ddd;padding:9px;text-align:left}th{background:#f5f5f5}.num{text-align:right}.totals{margin:22px 0 0 auto;max-width:320px}.line{display:flex;justify-content:space-between;padding:5px 0}.grand{font-size:18px;font-weight:bold;border-top:2px solid #222;margin-top:6px;padding-top:8px}.deleted{margin-top:18px;font-weight:bold}
+    </style></head><body><h1>DELETED SALES INVOICE BACKUP</h1><div class="meta"><b>Invoice:</b> ${esc(sale.invoice || '')}</div><div class="meta"><b>Customer:</b> ${esc(sale.customer || 'Walk-in')}</div><div class="meta"><b>Mobile:</b> ${esc(sale.mobile || '—')}</div><div class="meta"><b>Original Date:</b> ${esc(String(sale.created_at || '').replace('T',' '))}</div><div class="meta"><b>Deleted On:</b> ${esc(String(sale.deleted_at || '').replace('T',' '))}</div><div class="deleted">This is a deleted-invoice backup. It can be restored within 60 days.</div><table><tr><th>Medicine</th><th>Batch</th><th>Expiry</th><th>Qty</th><th>Unit Price</th><th>Amount</th></tr>${rows}</table><div class="totals"><div class="line"><span>Subtotal</span><span>${money(subtotal)}</span></div><div class="line"><span>Discount</span><span>${money(discount)}</span></div><div class="line grand"><span>Grand Total</span><span>${money(total)}</span></div></div><script>window.onload=()=>window.print();</script></body></html>`);
+    win.document.close();
+  } catch (e) {
+    alert('Deleted invoice backup could not be printed.');
   }
 }
 

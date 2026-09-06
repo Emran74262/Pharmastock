@@ -35,6 +35,19 @@ engine = create_engine(
 BD = ZoneInfo("Asia/Dhaka")
 
 
+def purge_expired_deleted_invoices():
+    """Permanently remove deleted invoices older than 60 days."""
+    try:
+        cutoff = bd_now_naive() - timedelta(days=60)
+        with engine.begin() as c:
+            c.execute(
+                text("DELETE FROM deleted_invoices WHERE deleted_at < :cutoff"),
+                {"cutoff": cutoff}
+            )
+    except SQLAlchemyError:
+        pass
+
+
 # =========================================================
 # BANGLADESH TIME
 # =========================================================
@@ -99,6 +112,19 @@ CREATE TABLE IF NOT EXISTS sale_items(
     quantity INTEGER NOT NULL,
     price NUMERIC(12,2) NOT NULL,
     batch_id INTEGER REFERENCES medicine_batches(id)
+);
+
+CREATE TABLE IF NOT EXISTS deleted_invoices(
+    id SERIAL PRIMARY KEY,
+    invoice TEXT UNIQUE NOT NULL,
+    customer TEXT DEFAULT 'Walk-in',
+    mobile TEXT DEFAULT '',
+    subtotal NUMERIC(12,2) DEFAULT 0,
+    discount NUMERIC(12,2) DEFAULT 0,
+    total NUMERIC(12,2) DEFAULT 0,
+    created_at TIMESTAMP NOT NULL,
+    deleted_at TIMESTAMP NOT NULL,
+    items_json TEXT NOT NULL DEFAULT '[]'
 );
 
 CREATE TABLE IF NOT EXISTS purchases(
@@ -2083,10 +2109,11 @@ def delete_sale(invoice):
         return jsonify(error="Login required"), 401
 
     try:
+        purge_expired_deleted_invoices()
         with engine.begin() as c:
             sale_row = c.execute(
                 text("""
-                    SELECT id, invoice
+                    SELECT *
                     FROM sales
                     WHERE invoice=:invoice
                     FOR UPDATE
@@ -2099,14 +2126,65 @@ def delete_sale(invoice):
 
             items = c.execute(
                 text("""
-                    SELECT medicine_id, quantity, batch_id
-                    FROM sale_items
-                    WHERE sale_id=:sid
+                    SELECT si.medicine_id, si.quantity, si.price,
+                           si.batch_id, mb.batch, mb.expiry,
+                           m.name, m.generic
+                    FROM sale_items si
+                    LEFT JOIN medicine_batches mb ON mb.id=si.batch_id
+                    LEFT JOIN medicines m ON m.id=si.medicine_id
+                    WHERE si.sale_id=:sid
+                    ORDER BY si.id
                 """),
                 {"sid": sale_row["id"]}
             ).mappings().all()
 
-            # Restore stock to the exact batches used by this invoice.
+            # Save a complete backup before removing the live invoice.
+            backup_items = []
+            for item in items:
+                backup_items.append({
+                    "medicine_id": item["medicine_id"],
+                    "name": item["name"] or "",
+                    "generic": item["generic"] or "",
+                    "quantity": int(item["quantity"] or 0),
+                    "price": float(item["price"] or 0),
+                    "batch_id": item["batch_id"],
+                    "batch": item["batch"] or "",
+                    "expiry": item["expiry"].isoformat() if item["expiry"] else None
+                })
+
+            import json as _json
+            c.execute(
+                text("""
+                    INSERT INTO deleted_invoices
+                    (invoice, customer, mobile, subtotal, discount, total,
+                     created_at, deleted_at, items_json)
+                    VALUES
+                    (:invoice, :customer, :mobile, :subtotal, :discount, :total,
+                     :created_at, :deleted_at, :items_json)
+                    ON CONFLICT (invoice) DO UPDATE SET
+                      customer=EXCLUDED.customer,
+                      mobile=EXCLUDED.mobile,
+                      subtotal=EXCLUDED.subtotal,
+                      discount=EXCLUDED.discount,
+                      total=EXCLUDED.total,
+                      created_at=EXCLUDED.created_at,
+                      deleted_at=EXCLUDED.deleted_at,
+                      items_json=EXCLUDED.items_json
+                """),
+                {
+                    "invoice": sale_row["invoice"],
+                    "customer": sale_row["customer"] or "Walk-in",
+                    "mobile": sale_row.get("mobile") or "",
+                    "subtotal": sale_row.get("subtotal") or 0,
+                    "discount": sale_row.get("discount") or 0,
+                    "total": sale_row.get("total") or 0,
+                    "created_at": sale_row["created_at"],
+                    "deleted_at": bd_now_naive(),
+                    "items_json": _json.dumps(backup_items)
+                }
+            )
+
+            # Restore stock exactly as before, then remove the live sale.
             for item in items:
                 if item["batch_id"]:
                     c.execute(
@@ -2149,8 +2227,191 @@ def delete_sale(invoice):
         log_action("DELETE_SALE", invoice)
         return jsonify(ok=True)
 
-    except SQLAlchemyError:
+    except (SQLAlchemyError, ValueError, TypeError):
         return jsonify(error="Invoice could not be deleted"), 500
+
+
+@app.get("/api/deleted-invoices")
+def deleted_invoices():
+
+    if not login_required():
+        return jsonify(error="Login required"), 401
+
+    purge_expired_deleted_invoices()
+
+    with engine.connect() as c:
+        rows = c.execute(
+            text("""
+                SELECT id, invoice, customer, mobile, subtotal, discount,
+                       total, created_at, deleted_at
+                FROM deleted_invoices
+                ORDER BY deleted_at DESC
+            """)
+        ).mappings().all()
+
+    return jsonify([dict(r) for r in rows])
+
+
+@app.get("/api/deleted-invoices/<invoice>")
+def get_deleted_invoice(invoice):
+
+    if not login_required():
+        return jsonify(error="Login required"), 401
+
+    purge_expired_deleted_invoices()
+
+    import json as _json
+    with engine.connect() as c:
+        row = c.execute(
+            text("SELECT * FROM deleted_invoices WHERE invoice=:invoice"),
+            {"invoice": invoice}
+        ).mappings().first()
+
+    if not row:
+        return jsonify(error="Deleted invoice not found"), 404
+
+    result = dict(row)
+    result["items"] = _json.loads(result.pop("items_json") or "[]")
+    return jsonify(result)
+
+
+@app.post("/api/deleted-invoices/<invoice>/restore")
+def restore_deleted_invoice(invoice):
+
+    if not login_required():
+        return jsonify(error="Login required"), 401
+
+    try:
+        purge_expired_deleted_invoices()
+        import json as _json
+        with engine.begin() as c:
+            row = c.execute(
+                text("SELECT * FROM deleted_invoices WHERE invoice=:invoice FOR UPDATE"),
+                {"invoice": invoice}
+            ).mappings().first()
+
+            if not row:
+                return jsonify(error="Deleted invoice not found"), 404
+
+            exists = c.execute(
+                text("SELECT id FROM sales WHERE invoice=:invoice"),
+                {"invoice": invoice}
+            ).first()
+            if exists:
+                return jsonify(error="An active invoice with this number already exists."), 409
+
+            items = _json.loads(row["items_json"] or "[]")
+
+            # Verify every original medicine/batch still exists and has enough stock.
+            for item in items:
+                med = c.execute(
+                    text("SELECT id, stock FROM medicines WHERE id=:id FOR UPDATE"),
+                    {"id": item["medicine_id"]}
+                ).mappings().first()
+                if not med:
+                    return jsonify(error=f"Cannot restore: medicine '{item.get('name','')}' no longer exists."), 409
+
+                if item.get("batch_id"):
+                    batch = c.execute(
+                        text("SELECT id, stock FROM medicine_batches WHERE id=:id FOR UPDATE"),
+                        {"id": item["batch_id"]}
+                    ).mappings().first()
+                    if not batch:
+                        return jsonify(error=f"Cannot restore: batch for '{item.get('name','')}' no longer exists."), 409
+                    if int(batch["stock"] or 0) < int(item["quantity"] or 0):
+                        return jsonify(error=f"Not enough stock in the original batch for '{item.get('name','')}' to restore this invoice."), 409
+                elif int(med["stock"] or 0) < int(item["quantity"] or 0):
+                    return jsonify(error=f"Not enough stock for '{item.get('name','')}' to restore this invoice."), 409
+
+            sale_id = c.execute(
+                text("""
+                    INSERT INTO sales
+                    (invoice, customer, mobile, subtotal, discount, total, created_at)
+                    VALUES (:invoice, :customer, :mobile, :subtotal, :discount, :total, :created_at)
+                    RETURNING id
+                """),
+                {
+                    "invoice": row["invoice"],
+                    "customer": row["customer"] or "Walk-in",
+                    "mobile": row["mobile"] or "",
+                    "subtotal": row["subtotal"] or 0,
+                    "discount": row["discount"] or 0,
+                    "total": row["total"] or 0,
+                    "created_at": row["created_at"]
+                }
+            ).scalar_one()
+
+            for item in items:
+                qty = int(item["quantity"] or 0)
+                c.execute(
+                    text("UPDATE medicines SET stock=stock-:qty WHERE id=:id"),
+                    {"qty": qty, "id": item["medicine_id"]}
+                )
+                if item.get("batch_id"):
+                    c.execute(
+                        text("UPDATE medicine_batches SET stock=stock-:qty WHERE id=:id"),
+                        {"qty": qty, "id": item["batch_id"]}
+                    )
+
+                c.execute(
+                    text("""
+                        INSERT INTO sale_items (sale_id, medicine_id, quantity, price, batch_id)
+                        VALUES (:sale_id, :medicine_id, :quantity, :price, :batch_id)
+                    """),
+                    {
+                        "sale_id": sale_id,
+                        "medicine_id": item["medicine_id"],
+                        "quantity": qty,
+                        "price": item["price"],
+                        "batch_id": item.get("batch_id")
+                    }
+                )
+
+                c.execute(
+                    text("""
+                        INSERT INTO stock_movements
+                        (medicine_id, batch_id, movement_type, quantity, reference, note, created_at, username)
+                        VALUES (:medicine_id, :batch_id, 'SALE', :quantity, :reference, 'Restored invoice', :created_at, :username)
+                    """),
+                    {
+                        "medicine_id": item["medicine_id"],
+                        "batch_id": item.get("batch_id"),
+                        "quantity": -qty,
+                        "reference": row["invoice"],
+                        "created_at": bd_now_naive(),
+                        "username": current_user()["username"]
+                    }
+                )
+
+            c.execute(text("DELETE FROM deleted_invoices WHERE id=:id"), {"id": row["id"]})
+
+        log_action("RESTORE_SALE", invoice)
+        return jsonify(ok=True)
+
+    except (SQLAlchemyError, ValueError, TypeError):
+        return jsonify(error="Invoice could not be restored"), 500
+
+
+@app.delete("/api/deleted-invoices/<invoice>")
+def permanently_delete_invoice(invoice):
+
+    if not login_required():
+        return jsonify(error="Login required"), 401
+
+    try:
+        with engine.begin() as c:
+            row = c.execute(
+                text("SELECT id FROM deleted_invoices WHERE invoice=:invoice FOR UPDATE"),
+                {"invoice": invoice}
+            ).mappings().first()
+            if not row:
+                return jsonify(error="Deleted invoice not found"), 404
+            c.execute(text("DELETE FROM deleted_invoices WHERE id=:id"), {"id": row["id"]})
+
+        log_action("PERMANENTLY_DELETE_INVOICE", invoice)
+        return jsonify(ok=True)
+    except SQLAlchemyError:
+        return jsonify(error="Invoice could not be permanently deleted"), 500
 
 
 @app.get("/api/sales/<invoice>")
