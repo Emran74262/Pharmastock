@@ -78,12 +78,25 @@ CREATE TABLE IF NOT EXISTS sales(
     created_at TIMESTAMP NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS medicine_batches(
+    id SERIAL PRIMARY KEY,
+    medicine_id INTEGER REFERENCES medicines(id) ON DELETE CASCADE,
+    batch TEXT NOT NULL DEFAULT '',
+    expiry DATE,
+    purchase_price NUMERIC(12,2) DEFAULT 0,
+    selling_price NUMERIC(12,2) DEFAULT 0,
+    stock INTEGER NOT NULL DEFAULT 0,
+    created_at TIMESTAMP NOT NULL,
+    UNIQUE(medicine_id, batch)
+);
+
 CREATE TABLE IF NOT EXISTS sale_items(
     id SERIAL PRIMARY KEY,
     sale_id INTEGER REFERENCES sales(id) ON DELETE CASCADE,
     medicine_id INTEGER REFERENCES medicines(id),
     quantity INTEGER NOT NULL,
-    price NUMERIC(12,2) NOT NULL
+    price NUMERIC(12,2) NOT NULL,
+    batch_id INTEGER REFERENCES medicine_batches(id)
 );
 
 CREATE TABLE IF NOT EXISTS purchases(
@@ -104,18 +117,6 @@ CREATE TABLE IF NOT EXISTS users(
     role TEXT NOT NULL DEFAULT 'staff',
     active BOOLEAN NOT NULL DEFAULT TRUE,
     created_at TIMESTAMP NOT NULL
-);
-
-CREATE TABLE IF NOT EXISTS medicine_batches(
-    id SERIAL PRIMARY KEY,
-    medicine_id INTEGER REFERENCES medicines(id) ON DELETE CASCADE,
-    batch TEXT NOT NULL DEFAULT '',
-    expiry DATE,
-    purchase_price NUMERIC(12,2) DEFAULT 0,
-    selling_price NUMERIC(12,2) DEFAULT 0,
-    stock INTEGER NOT NULL DEFAULT 0,
-    created_at TIMESTAMP NOT NULL,
-    UNIQUE(medicine_id, batch)
 );
 
 CREATE TABLE IF NOT EXISTS stock_movements(
@@ -158,6 +159,11 @@ def init_db():
         conn.execute(text("""
             ALTER TABLE sales
             ADD COLUMN IF NOT EXISTS discount NUMERIC(12,2) DEFAULT 0
+        """))
+
+        conn.execute(text("""
+            ALTER TABLE sale_items
+            ADD COLUMN IF NOT EXISTS batch_id INTEGER REFERENCES medicine_batches(id)
         """))
 
         # -------------------------------------------------
@@ -1800,11 +1806,13 @@ def sale():
                         FROM medicine_batches
                         WHERE medicine_id=:mid
                         AND stock>0
+                        AND (expiry IS NULL OR expiry >= :today)
                         ORDER BY expiry NULLS LAST, id
                         FOR UPDATE
                     """),
                     {
-                        "mid": medicine["id"]
+                        "mid": medicine["id"],
+                        "today": bd_today()
                     }
                 ).mappings().all()
 
@@ -1837,21 +1845,24 @@ def sale():
                                 sale_id,
                                 medicine_id,
                                 quantity,
-                                price
+                                price,
+                                batch_id
                             )
                             VALUES
                             (
                                 :sid,
                                 :mid,
                                 :qty,
-                                :price
+                                :price,
+                                :batch_id
                             )
                         """),
                         {
                             "sid": sid,
                             "mid": medicine["id"],
                             "qty": take,
-                            "price": medicine["price"]
+                            "price": medicine["price"],
+                            "batch_id": batch["id"]
                         }
                     )
 
@@ -1999,10 +2010,14 @@ def get_sale(invoice):
                 SELECT
                     si.*,
                     m.name,
-                    m.generic
+                    m.generic,
+                    mb.batch,
+                    mb.expiry
                 FROM sale_items si
                 JOIN medicines m
                     ON m.id=si.medicine_id
+                LEFT JOIN medicine_batches mb
+                    ON mb.id=si.batch_id
                 WHERE si.sale_id=:sid
                 ORDER BY si.id
             """),

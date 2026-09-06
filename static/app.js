@@ -358,10 +358,10 @@ function fillSelects() {
   ).join("");
 
   if ($("saleMed"))
-    $("saleMed").innerHTML = opts;
+    $("saleMed").innerHTML = `<option value=""></option>${opts}`;
 
   if ($("purMed"))
-    $("purMed").innerHTML = opts;
+    $("purMed").innerHTML = `<option value=""></option>${opts}`;
 }
 
 function openMed(m = null) {
@@ -393,7 +393,7 @@ function openMed(m = null) {
     $("medstock").value = m?.stock ?? "";
 
   if ($("minstock"))
-    $("minstock").value = m?.min_stock ?? 10;
+    $("minstock").value = m?.min_stock ?? "";
 
   if ($("modalTitle"))
     $("modalTitle").textContent =
@@ -555,11 +555,18 @@ function renderCart() {
       0
     );
 
-  if ($("subtotal"))
-    $("subtotal").textContent = money(subtotal);
+  const discountPercent = Math.max(0, Math.min(100, Number($("discount")?.value || 0)));
+  const discountAmount = subtotal * discountPercent / 100;
+  const total = Math.max(0, subtotal - discountAmount);
+
+  if ($("cartSubtotal"))
+    $("cartSubtotal").textContent = money(subtotal);
+
+  if ($("cartDiscount"))
+    $("cartDiscount").textContent = money(discountAmount);
 
   if ($("cartTotal"))
-    $("cartTotal").textContent = money(subtotal);
+    $("cartTotal").textContent = money(total);
 }
 
 async function completeSale() {
@@ -569,8 +576,9 @@ async function completeSale() {
     return;
   }
 
-  const discount =
-    Number($("discount")?.value || 0);
+  const discountPercent = Math.max(0, Math.min(100, Number($("discount")?.value || 0)));
+  const subtotal = cart.reduce((sum, x) => sum + x.price * x.qty, 0);
+  const discount = subtotal * discountPercent / 100;
 
   const customer =
     $("customer")?.value || "";
@@ -626,6 +634,12 @@ async function completeSale() {
     if ($("discount"))
       $("discount").value = "";
 
+    if ($("saleQty"))
+      $("saleQty").value = "";
+
+    if ($("saleMed"))
+      $("saleMed").value = "";
+
     renderCart();
     loadMeds();
     loadDash();
@@ -644,139 +658,135 @@ async function completeSale() {
 ========================= */
 
 async function printInvoice(invoice) {
-
   try {
-
-    const r = await fetch(
-      "/api/sales/" + encodeURIComponent(invoice)
-    );
-
+    const r = await fetch("/api/sales/" + encodeURIComponent(invoice));
     if (!r.ok) {
       alert("Invoice information could not be loaded.");
       return;
     }
 
     const data = await r.json();
-
+    const sale = data.sale || {};
     const items = data.items || [];
 
-    const rows = items.map(item => `
-      <tr>
-        <td>${esc(item.name)}</td>
-        <td>${item.quantity}</td>
-        <td>${money(item.price)}</td>
-        <td>${money(item.quantity * item.price)}</td>
-      </tr>
-    `).join("");
+    const calculatedSubtotal = items.reduce((sum, item) => {
+      return sum + (Number(item.quantity || 0) * Number(item.price || 0));
+    }, 0);
 
-    const win = window.open("", "_blank");
+    const invoiceSubtotal = Number(sale.subtotal || 0) || calculatedSubtotal;
+    const invoiceDiscount = Number(sale.discount || 0);
+    const invoiceDiscountPercent = invoiceSubtotal > 0 ? (invoiceDiscount / invoiceSubtotal) * 100 : 0;
+    const invoiceTotal = Number(sale.total || 0) || Math.max(0, invoiceSubtotal - invoiceDiscount);
 
+    const rows = items.map(item => {
+      const lineTotal = Number(item.quantity || 0) * Number(item.price || 0);
+      const expiry = item.expiry ? new Date(item.expiry).toLocaleDateString("en-GB") : "—";
+      return `
+        <tr>
+          <td>
+            <strong>${esc(item.name)}</strong>
+            ${item.generic ? `<div class="sub">${esc(item.generic)}</div>` : ""}
+          </td>
+          <td>${esc(item.batch || "—")}</td>
+          <td>${expiry}</td>
+          <td class="num">${item.quantity}</td>
+          <td class="num">${money(item.price)}</td>
+          <td class="num"><strong>${money(lineTotal)}</strong></td>
+        </tr>`;
+    }).join("");
+
+    const win = window.open("", "_blank", "width=900,height=800");
     if (!win) {
       alert("Please allow pop-ups to print the invoice.");
       return;
+    }
+
+    let invoiceDate = "";
+    let invoiceTime = "";
+    if (sale.created_at) {
+      const raw = String(sale.created_at).replace("T", " ");
+      const match = raw.match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})(?::(\d{2}))?/);
+      if (match) {
+        const [, y, mo, d, hh, mm, ss = "00"] = match;
+        const dt = new Date(Number(y), Number(mo) - 1, Number(d), Number(hh), Number(mm), Number(ss));
+        invoiceDate = new Intl.DateTimeFormat("en-GB", {
+          day: "2-digit", month: "long", year: "numeric"
+        }).format(dt);
+        invoiceTime = new Intl.DateTimeFormat("en-US", {
+          hour: "2-digit", minute: "2-digit", hour12: true
+        }).format(dt);
+      } else {
+        const dt = new Date(sale.created_at);
+        if (!Number.isNaN(dt.getTime())) {
+          invoiceDate = new Intl.DateTimeFormat("en-GB", {
+            day: "2-digit", month: "long", year: "numeric", timeZone: "Asia/Dhaka"
+          }).format(dt);
+          invoiceTime = new Intl.DateTimeFormat("en-US", {
+            hour: "2-digit", minute: "2-digit", hour12: true, timeZone: "Asia/Dhaka"
+          }).format(dt);
+        }
+      }
     }
 
     win.document.write(`
       <!doctype html>
       <html>
       <head>
-        <title>Invoice ${esc(invoice)}</title>
-
+        <meta charset="utf-8">
+        <title>${esc(invoice)} — PharmaStock</title>
         <style>
-          body {
-            font-family: Arial, sans-serif;
-            padding: 30px;
-          }
-
-          h1 {
-            margin-bottom: 5px;
-          }
-
-          table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 20px;
-          }
-
-          th, td {
-            border: 1px solid #ccc;
-            padding: 8px;
-            text-align: left;
-          }
-
-          .right {
-            text-align: right;
-          }
-
-          @media print {
-            button {
-              display: none;
-            }
-          }
+          *{box-sizing:border-box}
+          body{margin:0;background:#eef3f6;font-family:Arial,Segoe UI,sans-serif;color:#163047}
+          .invoice{width:min(900px,calc(100% - 30px));margin:25px auto;background:#fff;padding:38px;box-shadow:0 12px 40px rgba(0,0,0,.10)}
+          .top{display:flex;justify-content:space-between;gap:20px;border-bottom:3px solid #1aa765;padding-bottom:22px}
+          .brand{font-size:28px;font-weight:800;color:#087b43}.brand span{font-size:30px}
+          .tag{margin-top:5px;color:#6b7c93;font-size:13px}
+          .invoice-title{text-align:right}.invoice-title h1{margin:0;font-size:28px;color:#102a43}.invoice-title p{margin:7px 0;color:#6b7c93;font-size:12px}
+          .meta{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:24px 0;padding:15px;background:#f6faf8;border-radius:12px}
+          .meta b{display:block;font-size:11px;text-transform:uppercase;color:#78909c;margin-bottom:4px}.meta span{font-size:14px}
+          table{width:100%;border-collapse:collapse;margin-top:10px}th{background:#0b8f52;color:#fff;text-align:left;padding:11px 9px;font-size:11px;text-transform:uppercase}td{padding:11px 9px;border-bottom:1px solid #e5ebef;font-size:12px}.sub{color:#718096;font-size:10px;margin-top:3px}.num{text-align:right}
+          .totals{margin:20px 0 0 auto;width:310px}.line{display:flex;justify-content:space-between;padding:7px 0;color:#66788a}.grand{display:flex;justify-content:space-between;margin-top:8px;padding-top:13px;border-top:2px solid #dce7e2;font-size:19px;font-weight:800;color:#087b43}
+          .footer{margin-top:28px;padding-top:18px;border-top:1px solid #e3e9ed;text-align:center;color:#718096;font-size:11px}.print{margin-top:22px;text-align:center}.print button{border:0;border-radius:9px;background:#0b8f52;color:white;padding:11px 22px;font-weight:700;cursor:pointer}
+          @media print{body{background:#fff}.invoice{width:100%;margin:0;padding:18px;box-shadow:none}.print{display:none}}
         </style>
       </head>
-
       <body>
+        <div class="invoice">
+          <div class="top">
+            <div><div class="brand"><span>💊</span> PharmaStock</div><div class="tag">Professional Pharmacy Management</div></div>
+            <div class="invoice-title"><h1>SALES INVOICE</h1><p>Original Customer Copy</p></div>
+          </div>
 
-        <h1>💊 PharmaStock</h1>
-        <p>Pharmacy Invoice</p>
+          <div class="meta">
+            <div><b>Invoice Number</b><span>${esc(invoice)}</span></div>
+            <div><b>Date</b><span>${esc(invoiceDate || "—")}</span></div>
+            <div><b>Time</b><span>${esc(invoiceTime || "—")}</span></div>
+            <div><b>Customer</b><span>${esc(sale.customer || "Walk-in Customer")}</span></div>
+            <div><b>Payment</b><span>Cash / Counter Sale</span></div>
+          </div>
 
-        <hr>
+          <table>
+            <thead><tr><th>Medicine</th><th>Batch</th><th>Expiry</th><th class="num">Qty</th><th class="num">Unit Price</th><th class="num">Amount</th></tr></thead>
+            <tbody>${rows}</tbody>
+          </table>
 
-        <p>
-          <b>Invoice:</b> ${esc(invoice)}<br>
-          <b>Customer:</b> ${esc(data.customer || "Walk-in Customer")}<br>
-          <b>Date:</b> ${esc(data.created_at || "")}
-        </p>
+          <div class="totals">
+            <div class="line"><span>Subtotal</span><strong>${money(invoiceSubtotal)}</strong></div>
+            <div class="line"><span>Discount (${invoiceDiscountPercent.toFixed(2)}%)</span><strong>− ${money(invoiceDiscount)}</strong></div>
+            <div class="grand"><span>Grand Total</span><span>${money(invoiceTotal)}</span></div>
+          </div>
 
-        <table>
-          <thead>
-            <tr>
-              <th>Medicine</th>
-              <th>Qty</th>
-              <th>Price</th>
-              <th>Total</th>
-            </tr>
-          </thead>
-
-          <tbody>
-            ${rows}
-          </tbody>
-        </table>
-
-        <h3 class="right">
-          Subtotal: ${money(data.subtotal)}
-        </h3>
-
-        <h3 class="right">
-          Discount: ${money(data.discount)}
-        </h3>
-
-        <h2 class="right">
-          Total: ${money(data.total)}
-        </h2>
-
-        <p>
-          Thank you for your purchase.
-        </p>
-
-        <button onclick="window.print()">
-          Print
-        </button>
-
+          <div class="footer">Thank you for choosing PharmaStock.<br>Please keep this invoice for your records.</div>
+          <div class="print"><button onclick="window.print()">🖨️ Print Invoice</button></div>
+        </div>
       </body>
-      </html>
-    `);
-
+      </html>`);
     win.document.close();
-
   } catch (e) {
-
     console.error(e);
     alert("Could not open invoice.");
   }
 }
-
 /* =========================
    STOCK IN
 ========================= */
@@ -1105,6 +1115,10 @@ document.addEventListener("DOMContentLoaded", () => {
       if (e.key === "Enter")
         login();
     });
+  }
+
+  if ($("discount")) {
+    $("discount").addEventListener("input", renderCart);
   }
 
   checkSession();

@@ -344,3 +344,10 @@ body.dark .error{color:#ff8c8c}
   .saleadd{grid-template-columns:1fr}
 }
 @media(max-width:470px){.cards{grid-template-columns:1fr}.panel{padding:15px}.login-box{padding:28px 20px}}
+
+
+/* Global field labels: field names stay above the boxes. */
+.field{display:flex;flex-direction:column;gap:6px;min-width:0}
+.field-label{display:block;font-size:13px;font-weight:700;color:var(--text);line-height:1.2}
+.login-box .field-label{color:var(--text)}
+.login-box>input + .field-label{margin-top:0}
