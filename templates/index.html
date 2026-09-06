@@ -133,8 +133,12 @@
       Bangladesh Time
     </span>
 
-    <a class="export"
-       href="/api/export">
+    <div class="theme-toggle" aria-label="Theme selector">
+      <button id="lightThemeBtn" type="button" onclick="setTheme('light')">☀️ Light</button>
+      <button id="darkThemeBtn" type="button" onclick="setTheme('dark')">🌙 Dark</button>
+    </div>
+
+    <a class="export" href="/api/export">
       Export CSV
     </a>
 
@@ -562,31 +566,6 @@
 
 </main>
 
-</div>
-
-
-<!-- BATCH DETAILS MODAL -->
-
-<div id="batchModal" class="modal hidden">
-  <div class="modalbox" style="max-width:900px">
-    <button class="close" onclick="closeBatchModal()">×</button>
-    <h2 id="batchModalTitle">📦 Batches</h2>
-    <div class="tablewrap">
-      <table>
-        <thead>
-          <tr>
-            <th>Batch</th>
-            <th>Expiry</th>
-            <th>Stock</th>
-            <th>Purchase Price</th>
-            <th>Selling Price</th>
-            <th>Status</th>
-          </tr>
-        </thead>
-        <tbody id="batchRows"></tbody>
-      </table>
-    </div>
-  </div>
 </div>
 
 
