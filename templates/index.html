@@ -309,9 +309,15 @@
 
       <h2>🧾 New Sale</h2>
 
-      <div class="field">
-        <label class="field-label" for="customer">Customer Name</label>
-        <input id="customer">
+      <div class="grid2">
+        <div class="field">
+          <label class="field-label" for="customer">Customer Name</label>
+          <input id="customer">
+        </div>
+        <div class="field">
+          <label class="field-label" for="customerMobile">Mobile Number</label>
+          <input id="customerMobile" type="tel">
+        </div>
       </div>
 
       <div class="saleadd">
@@ -472,6 +478,11 @@
     <div class="panel">
 
       <h2>Sales Report</h2>
+
+      <div class="field report-search">
+        <label class="field-label" for="invoiceSearch">Search Invoices</label>
+        <input id="invoiceSearch" type="search" oninput="filterSalesReport()">
+      </div>
 
       <div id="salesReport"></div>
 

@@ -633,6 +633,7 @@ async function completeSale() {
       },
       body: JSON.stringify({
         customer,
+        mobile: $("customerMobile")?.value || "",
         discount,
         items: cart.map(x => ({
           id: x.id,
@@ -671,6 +672,9 @@ async function completeSale() {
 
     if ($("customer"))
       $("customer").value = "";
+
+    if ($("customerMobile"))
+      $("customerMobile").value = "";
 
     if ($("discount"))
       $("discount").value = "";
@@ -803,6 +807,7 @@ async function printInvoice(invoice) {
             <div><b>Date</b><span>${esc(invoiceDate || "—")}</span></div>
             <div><b>Time</b><span>${esc(invoiceTime || "—")}</span></div>
             <div><b>Customer</b><span>${esc(sale.customer || "Walk-in Customer")}</span></div>
+            <div><b>Mobile</b><span>${esc(sale.mobile || "—")}</span></div>
             <div><b>Payment</b><span>Cash / Counter Sale</span></div>
           </div>
 
@@ -923,6 +928,73 @@ async function loadMovements() {
    REPORTS
 ========================= */
 
+let salesReportData = [];
+
+function renderSalesReport() {
+  if (!$("salesReport")) return;
+
+  const query = String($("invoiceSearch")?.value || "").trim().toLowerCase();
+  const filtered = salesReportData.filter(x => {
+    const invoice = String(x.invoice || "").toLowerCase();
+    const customer = String(x.customer || "").toLowerCase();
+    const mobile = String(x.mobile || "").toLowerCase();
+    return !query || invoice.includes(query) || customer.includes(query) || mobile.includes(query);
+  });
+
+  $("salesReport").innerHTML = filtered.length
+    ? `
+      <table>
+        <tr>
+          <th>Invoice</th>
+          <th>Customer</th>
+          <th>Mobile</th>
+          <th>Total</th>
+          <th>Date</th>
+          <th>Actions</th>
+        </tr>
+        ${filtered.map(x => `
+          <tr>
+            <td>${esc(x.invoice)}</td>
+            <td>${esc(x.customer || "")}</td>
+            <td>${esc(x.mobile || "")}</td>
+            <td>${money(x.total)}</td>
+            <td>${esc(String(x.created_at || "").replace("T", " ") )}</td>
+            <td class="report-actions">
+              <button class="btn-small" onclick="printInvoice('${esc(x.invoice)}')">🖨️ Print</button>
+              <button class="btn-small danger" onclick="deleteInvoice('${esc(x.invoice)}')">🗑️ Delete</button>
+            </td>
+          </tr>
+        `).join("")}
+      </table>
+    `
+    : "No matching invoices.";
+}
+
+function filterSalesReport() {
+  renderSalesReport();
+}
+
+async function deleteInvoice(invoice) {
+  if (!confirm(`Delete invoice ${invoice}? The sold stock will be restored.`)) return;
+
+  try {
+    const r = await fetch("/api/sales/" + encodeURIComponent(invoice), { method: "DELETE" });
+    const j = await r.json();
+    if (!r.ok) {
+      alert(j.error || "Invoice could not be deleted.");
+      return;
+    }
+
+    salesReportData = salesReportData.filter(x => x.invoice !== invoice);
+    renderSalesReport();
+    loadMeds();
+    loadDash();
+    alert("Invoice deleted successfully.");
+  } catch (e) {
+    alert("Invoice could not be deleted.");
+  }
+}
+
 async function loadReports() {
 
   try {
@@ -933,38 +1005,10 @@ async function loadReports() {
         fetch("/api/reports/stock")
       ]);
 
-    const sales = await salesResponse.json();
+    salesReportData = await salesResponse.json();
     const stock = await stockResponse.json();
 
-    if ($("salesReport")) {
-
-      $("salesReport").innerHTML =
-        sales.length
-          ? `
-            <table>
-              <tr>
-                <th>Invoice</th>
-                <th>Customer</th>
-                <th>Total</th>
-                <th>Date</th>
-              </tr>
-
-              ${sales.map(x => `
-                <tr>
-                  <td>${esc(x.invoice)}</td>
-                  <td>${esc(x.customer || "")}</td>
-                  <td>${money(x.total)}</td>
-                  <td>${esc(
-                    String(x.created_at || "")
-                      .replace("T", " ")
-                  )}</td>
-                </tr>
-              `).join("")}
-
-            </table>
-          `
-          : "No sales yet.";
-    }
+    renderSalesReport();
 
     if ($("stockReport")) {
 

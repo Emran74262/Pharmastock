@@ -75,6 +75,7 @@ CREATE TABLE IF NOT EXISTS sales(
     id SERIAL PRIMARY KEY,
     invoice TEXT UNIQUE NOT NULL,
     customer TEXT DEFAULT 'Walk-in',
+    mobile TEXT DEFAULT '',
     total NUMERIC(12,2) NOT NULL,
     created_at TIMESTAMP NOT NULL
 );
@@ -152,6 +153,11 @@ def init_db():
                 conn.execute(text(statement))
 
         # Existing-table migrations
+        conn.execute(text("""
+            ALTER TABLE sales
+            ADD COLUMN IF NOT EXISTS mobile TEXT DEFAULT ''
+        """))
+
         conn.execute(text("""
             ALTER TABLE sales
             ADD COLUMN IF NOT EXISTS subtotal NUMERIC(12,2) DEFAULT 0
@@ -1854,6 +1860,7 @@ def sale():
                     (
                         invoice,
                         customer,
+                        mobile,
                         subtotal,
                         discount,
                         total,
@@ -1863,6 +1870,7 @@ def sale():
                     (
                         :invoice,
                         :customer,
+                        :mobile,
                         :subtotal,
                         :discount,
                         :total,
@@ -1875,6 +1883,7 @@ def sale():
                     "customer": d.get(
                         "customer"
                     ) or "Walk-in",
+                    "mobile": str(d.get("mobile") or "").strip(),
                     "subtotal": subtotal,
                     "discount": discount,
                     "total": total,
@@ -2065,6 +2074,83 @@ def sales_report():
     return jsonify(
         [dict(r) for r in rows]
     )
+
+
+@app.delete("/api/sales/<invoice>")
+def delete_sale(invoice):
+
+    if not login_required():
+        return jsonify(error="Login required"), 401
+
+    try:
+        with engine.begin() as c:
+            sale_row = c.execute(
+                text("""
+                    SELECT id, invoice
+                    FROM sales
+                    WHERE invoice=:invoice
+                    FOR UPDATE
+                """),
+                {"invoice": invoice}
+            ).mappings().first()
+
+            if not sale_row:
+                return jsonify(error="Invoice not found"), 404
+
+            items = c.execute(
+                text("""
+                    SELECT medicine_id, quantity, batch_id
+                    FROM sale_items
+                    WHERE sale_id=:sid
+                """),
+                {"sid": sale_row["id"]}
+            ).mappings().all()
+
+            # Restore stock to the exact batches used by this invoice.
+            for item in items:
+                if item["batch_id"]:
+                    c.execute(
+                        text("""
+                            UPDATE medicine_batches
+                            SET stock=stock+:qty
+                            WHERE id=:batch_id
+                        """),
+                        {"qty": item["quantity"], "batch_id": item["batch_id"]}
+                    )
+
+                c.execute(
+                    text("""
+                        UPDATE medicines
+                        SET stock=stock+:qty
+                        WHERE id=:medicine_id
+                    """),
+                    {"qty": item["quantity"], "medicine_id": item["medicine_id"]}
+                )
+
+            c.execute(
+                text("""
+                    DELETE FROM stock_movements
+                    WHERE reference=:invoice
+                      AND movement_type='SALE'
+                """),
+                {"invoice": invoice}
+            )
+
+            c.execute(
+                text("DELETE FROM sale_items WHERE sale_id=:sid"),
+                {"sid": sale_row["id"]}
+            )
+
+            c.execute(
+                text("DELETE FROM sales WHERE id=:sid"),
+                {"sid": sale_row["id"]}
+            )
+
+        log_action("DELETE_SALE", invoice)
+        return jsonify(ok=True)
+
+    except SQLAlchemyError:
+        return jsonify(error="Invoice could not be deleted"), 500
 
 
 @app.get("/api/sales/<invoice>")
