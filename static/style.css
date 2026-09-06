@@ -115,6 +115,50 @@ button{cursor:pointer}
   letter-spacing:-.4px;
 }
 .brand::first-letter{font-size:30px}
+.sidebar-user{
+  margin:0 12px 10px;
+  padding:8px 11px;
+  border-radius:10px;
+  background:rgba(255,255,255,.13);
+  color:rgba(255,255,255,.96);
+  font-size:13px;
+  font-weight:700;
+}
+.sidebar-hide-btn{
+  width:calc(100% - 24px);
+  margin:0 12px 8px;
+  padding:8px 11px;
+  border:1px solid rgba(255,255,255,.18);
+  border-radius:10px;
+  background:rgba(0,0,0,.10);
+  color:#fff;
+  text-align:left;
+  font-size:12px;
+  font-weight:600;
+  cursor:pointer;
+}
+.sidebar-hide-btn:hover{background:rgba(0,0,0,.18)}
+.sidebar-show-btn{
+  display:none;
+  position:fixed;
+  left:14px;
+  top:14px;
+  z-index:50;
+  align-items:center;
+  gap:7px;
+  border:1px solid var(--border);
+  background:var(--surface);
+  color:var(--text);
+  padding:9px 13px;
+  border-radius:10px;
+  box-shadow:var(--shadow-soft);
+  font-size:13px;
+  font-weight:700;
+  cursor:pointer;
+}
+#app.sidebar-collapsed .sidebar{display:none}
+#app.sidebar-collapsed main{margin-left:0;width:100%}
+#app.sidebar-collapsed .sidebar-show-btn{display:inline-flex}
 .nav{
   width:100%;
   border:0;
@@ -380,3 +424,9 @@ body.dark .btn-small.danger:hover{background:#3b1d1a}
 @media (max-width:700px){
   .stock-alert-item{align-items:flex-start;flex-direction:column}
 }
+
+
+/* COLLAPSED SIDEBAR OVERRIDES */
+#app.sidebar-collapsed main{margin-left:0;width:100%}
+#app.sidebar-collapsed .sidebar{display:none}
+#app.sidebar-collapsed .sidebar-show-btn{display:inline-flex}

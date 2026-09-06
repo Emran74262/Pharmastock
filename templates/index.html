@@ -54,6 +54,12 @@
     💊 PharmaStock
   </div>
 
+  <div id="loggedUser" class="sidebar-user"></div>
+
+  <button type="button" class="sidebar-hide-btn" onclick="hideSidebar()">
+    ◀ Hide Sidebar
+  </button>
+
   <button class="nav active"
           onclick="show('dashboard',this)">
     🏠 Dashboard
@@ -110,8 +116,6 @@
 
   <div class="sidefoot">
 
-    <div id="loggedUser"></div>
-
     <button onclick="logout()">
       Logout
     </button>
@@ -122,6 +126,10 @@
 
 </div>
 
+
+<button id="sidebarShowBtn" class="sidebar-show-btn" type="button" onclick="showSidebar()" aria-label="Show menu">
+  ☰ <span>Menu</span>
+</button>
 
 <main>
 

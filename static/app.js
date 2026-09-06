@@ -49,6 +49,30 @@ function showLogin() {
   if ($("app")) $("app").classList.add("hidden");
 }
 
+/* =========================
+   SIDEBAR / FULL SCREEN
+========================= */
+
+function applySidebarState(hidden) {
+  const app = $("app");
+  if (!app) return;
+
+  app.classList.toggle("sidebar-collapsed", !!hidden);
+  localStorage.setItem("pharmastock-sidebar-hidden", hidden ? "1" : "0");
+}
+
+function hideSidebar() {
+  applySidebarState(true);
+}
+
+function showSidebar() {
+  applySidebarState(false);
+}
+
+function initSidebar() {
+  applySidebarState(localStorage.getItem("pharmastock-sidebar-hidden") === "1");
+}
+
 function showApp() {
   if ($("loginPage")) $("loginPage").classList.add("hidden");
   if ($("app")) $("app").classList.remove("hidden");
@@ -1423,3 +1447,4 @@ function initTheme() {
 }
 
 initTheme();
+initSidebar();
