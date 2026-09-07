@@ -14,42 +14,23 @@
 <!-- LOGIN -->
 
 <div id="loginPage" class="login-page">
-
   <div class="login-box">
-
     <div class="login-brand-mark">💊</div>
-
     <div class="login-kicker">PHARMACY MANAGEMENT</div>
     <h1>PharmaStock</h1>
     <p>Secure Pharmacy Management System</p>
-
     <div class="login-divider"><span></span><b>Sign in to continue</b><span></span></div>
-
     <label class="field-label" for="loginUsername">Username</label>
-    <input id="loginUsername"
-           autocomplete="username">
-
+    <input id="loginUsername" autocomplete="username">
     <label class="field-label" for="loginPassword">Password</label>
     <div class="password-field">
-      <input id="loginPassword"
-             type="password"
-             autocomplete="current-password">
-      <button type="button" class="password-toggle" onclick="toggleLoginPassword()" aria-label="Show password" title="Show password">
-        <span id="loginPasswordEye">👁️</span>
-      </button>
+      <input id="loginPassword" type="password" autocomplete="current-password">
+      <button type="button" class="password-toggle" onclick="toggleLoginPassword()" aria-label="Show password" title="Show password"><span id="loginPasswordEye">👁️</span></button>
     </div>
-
-    <button class="primary login-btn"
-            onclick="login()">
-      <span>🔐</span> Login Securely
-    </button>
-
+    <button class="primary login-btn" onclick="login()"><span>🔐</span> Login Securely</button>
     <div class="login-security">🛡️ Secure access for authorized pharmacy staff</div>
-
     <div id="loginMsg"></div>
-
   </div>
-
 </div>
 
 
@@ -95,10 +76,15 @@
     🔄 Stock History
   </button>
 
-  <button class="nav"
-          onclick="show('reports',this)">
-    📊 Reports
-  </button>
+  <button class="nav" onclick="show('analytics',this)">📊 Analytics</button>
+
+  <button class="nav" onclick="show('profitLoss',this)">💰 Profit & Loss</button>
+
+  <button class="nav" onclick="show('reports',this)">📈 Reports</button>
+
+  <button class="nav" onclick="show('suppliers',this)">🏭 Suppliers</button>
+
+  <button class="nav" onclick="show('customers',this)">👤 Customers</button>
 
   <button class="nav"
           onclick="show('deletedInvoices',this)">
@@ -119,10 +105,7 @@
 
   <!-- SETTINGS / CHANGE PASSWORD -->
 
-  <button class="nav"
-          onclick="window.location.href='/change-password'">
-    ⚙️ Settings
-  </button>
+  <button class="nav" onclick="show('settings',this)">⚙️ Settings</button>
 
   </div>
 
@@ -212,6 +195,21 @@
       <b id="today">৳0</b>
     </div>
 
+    <div class="card profit-card">
+      <span>Today's Profit</span>
+      <b id="todayProfit">৳0</b>
+    </div>
+
+    <div class="card">
+      <span>Monthly Sales</span>
+      <b id="monthSales">৳0</b>
+    </div>
+
+    <div class="card profit-card">
+      <span>Monthly Profit</span>
+      <b id="monthProfit">৳0</b>
+    </div>
+
   </div>
 
 
@@ -233,9 +231,8 @@
         📦 Stock In
       </button>
 
-      <button onclick="show('reports')">
-        📊 Reports
-      </button>
+      <button onclick="show('analytics')">📊 Analytics</button>
+      <button onclick="show('profitLoss')">💰 Profit & Loss</button>
 
     </div>
 
@@ -251,6 +248,13 @@
     </div>
 
   </div>
+
+  <div class="analytics-grid">
+    <div class="panel"><h2>📈 Sales — Last 30 Days</h2><div id="salesChart" class="bar-chart"></div></div>
+    <div class="panel"><h2>🏆 Best Sellers</h2><div id="bestSellers"></div></div>
+  </div>
+
+  <div class="panel"><h2>🔔 Recent Notifications</h2><div id="dashboardNotifications">Loading...</div></div>
 
 </section>
 
@@ -327,6 +331,13 @@
       <div class="saleadd">
 
         <div class="field">
+          <label class="field-label" for="saleBarcode">Barcode Scanner / Barcode</label>
+          <input id="saleBarcode" inputmode="numeric" onkeydown="barcodeKeydown(event)">
+        </div>
+
+        <button type="button" onclick="startBarcodeScanner()">📷 Scan</button>
+
+        <div class="field">
           <label class="field-label" for="saleMed">Medicine</label>
           <select id="saleMed"></select>
         </div>
@@ -345,12 +356,29 @@
       <div id="cart"></div>
 
       <div class="row">
-
         <div class="field">
           <label class="field-label" for="discount">Discount</label>
           <input id="discount" type="number" min="0" step=".01">
         </div>
+        <div class="field">
+          <label class="field-label" for="paymentMethod">Payment Method</label>
+          <select id="paymentMethod">
+            <option value=""></option><option>Cash</option><option>bKash</option><option>Nagad</option><option>Card</option><option>Bank</option><option>Mixed</option>
+          </select>
+        </div>
+        <div class="field">
+          <label class="field-label" for="paymentStatus">Payment Status</label>
+          <select id="paymentStatus"><option value=""></option><option>Paid</option><option>Partial</option><option>Due</option></select>
+        </div>
+        <div class="field">
+          <label class="field-label" for="paidAmount">Paid Amount</label>
+          <input id="paidAmount" type="number" min="0" step=".01">
+        </div>
+      </div>
 
+      <div class="field">
+        <label class="field-label" for="paymentDetails">Payment Details</label>
+        <input id="paymentDetails">
       </div>
 
       <div class="total">
@@ -442,6 +470,11 @@
         <input id="purPrice" type="number" step=".01">
       </div>
 
+      <div class="field">
+        <label class="field-label" for="purPaid">Amount Paid to Supplier</label>
+        <input id="purPaid" type="number" min="0" step=".01">
+      </div>
+
     </div>
 
     <button class="primary"
@@ -507,6 +540,56 @@
 
 </section>
 
+<!-- ANALYTICS -->
+<section id="analytics" class="page hidden">
+  <div class="panel">
+    <h2>📊 Business Analytics</h2>
+    <div class="analytics-grid">
+      <div class="chart-card"><h3>Sales — Last 30 Days</h3><div id="salesChartAnalytics" class="bar-chart"></div></div>
+      <div class="chart-card"><h3>Top Selling Medicines</h3><div id="bestSellersAnalytics"></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- PROFIT & LOSS -->
+<section id="profitLoss" class="page hidden">
+  <div class="panel">
+    <h2>💰 Profit & Loss</h2>
+    <div class="row">
+      <div class="field"><label class="field-label" for="plStart">Start Date</label><input id="plStart" type="date"></div>
+      <div class="field"><label class="field-label" for="plEnd">End Date</label><input id="plEnd" type="date"></div>
+      <button class="primary" onclick="loadProfitLoss()">Generate Report</button>
+    </div>
+    <div id="plSummary" class="cards compact"></div>
+    <div id="plReport"></div>
+  </div>
+</section>
+
+<!-- SUPPLIERS -->
+<section id="suppliers" class="page hidden">
+  <div class="grid2">
+    <div class="panel"><h2>🏭 Add Supplier</h2>
+      <div class="field"><label class="field-label" for="supplierName">Supplier Name</label><input id="supplierName"></div>
+      <div class="field"><label class="field-label" for="supplierPhone">Phone</label><input id="supplierPhone" type="tel"></div>
+      <div class="field"><label class="field-label" for="supplierAddress">Address</label><input id="supplierAddress"></div>
+      <button class="primary" onclick="saveSupplier()">Save Supplier</button><div id="supplierMsg"></div>
+    </div>
+    <div class="panel"><h2>Supplier Database</h2><div id="supplierList"></div></div>
+  </div>
+</section>
+
+<!-- CUSTOMERS -->
+<section id="customers" class="page hidden">
+  <div class="grid2">
+    <div class="panel"><h2>👤 Add Customer</h2>
+      <div class="field"><label class="field-label" for="customerName">Customer Name</label><input id="customerName"></div>
+      <div class="field"><label class="field-label" for="customerPhone">Mobile</label><input id="customerPhone" type="tel"></div>
+      <div class="field"><label class="field-label" for="customerAddress">Address</label><input id="customerAddress"></div>
+      <button class="primary" onclick="saveCustomer()">Save Customer</button><div id="customerMsg"></div>
+    </div>
+    <div class="panel"><h2>Customer Database</h2><div id="customerList"></div></div>
+  </div>
+</section>
 
 <!-- DELETED INVOICES -->
 
@@ -581,13 +664,36 @@
       <h2>Users</h2>
 
       <div id="userList"></div>
-
     </div>
-
+  </div>
+  <div class="panel" style="margin-top:16px">
+    <h2>🛡️ Staff Activity History</h2>
+    <div id="auditList"></div>
   </div>
 
 </section>
 
+
+<!-- SETTINGS -->
+<section id="settings" class="page hidden">
+  <div class="grid2">
+    <div class="panel">
+      <h2>⚙️ Pharmacy Profile</h2>
+      <p class="muted">These details appear on printed invoices.</p>
+      <div class="field"><label class="field-label" for="pharmacyName">Pharmacy Name</label><input id="pharmacyName"></div>
+      <div class="field"><label class="field-label" for="pharmacyPhone">Phone</label><input id="pharmacyPhone" type="tel"></div>
+      <div class="field"><label class="field-label" for="pharmacyAddress">Address</label><input id="pharmacyAddress"></div>
+      <div class="field"><label class="field-label" for="pharmacyLogo">Logo / Brand Mark</label><input id="pharmacyLogo" type="file" accept="image/*"></div>
+      <button class="primary" onclick="savePharmacyProfile()">Save Pharmacy Profile</button>
+      <div id="profileMsg"></div>
+    </div>
+    <div class="panel">
+      <h2>🔐 Security</h2>
+      <p class="muted">Change your account password securely.</p>
+      <a class="button primary" href="/change-password">Change Password</a>
+    </div>
+  </div>
+</section>
 
 <!-- BACKUP -->
 
@@ -600,7 +706,7 @@
 
     <p>
       Download a complete PharmaStock backup containing
-      medicines, batches, sales, purchases, stock movements,
+      medicines, batches, sales, purchases, suppliers, customers, stock movements,
       users and audit logs.
     </p>
 
@@ -670,10 +776,19 @@
         <label class="field-label" for="category">Category</label>
         <input id="category">
       </div>
+      <div class="field">
+        <label class="field-label" for="manufacturer">Manufacturer</label>
+        <input id="manufacturer">
+      </div>
 
     </div>
 
     <div class="row">
+
+      <div class="field">
+        <label class="field-label" for="barcode">Barcode</label>
+        <input id="barcode" inputmode="numeric">
+      </div>
 
       <div class="field">
         <label class="field-label" for="batch">Batch Number</label>

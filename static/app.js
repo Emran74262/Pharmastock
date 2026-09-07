@@ -96,21 +96,7 @@ function showApp() {
   loadMeds();
 }
 
-function toggleLoginPassword() {
-  const input = $("loginPassword");
-  const eye = $("loginPasswordEye");
-  const button = document.querySelector(".password-toggle");
-  if (!input) return;
-
-  const visible = input.type === "text";
-  input.type = visible ? "password" : "text";
-
-  if (eye) eye.textContent = visible ? "👁️" : "🙈";
-  if (button) {
-    button.setAttribute("aria-label", visible ? "Show password" : "Hide password");
-    button.setAttribute("title", visible ? "Show password" : "Hide password");
-  }
-}
+function toggleLoginPassword(){const input=$("loginPassword"),eye=$("loginPasswordEye"),button=document.querySelector(".password-toggle");if(!input)return;const visible=input.type==="text";input.type=visible?"password":"text";if(eye)eye.textContent=visible?"👁️":"🙈";if(button){button.setAttribute("aria-label",visible?"Show password":"Hide password");button.setAttribute("title",visible?"Show password":"Hide password");}}
 
 async function login() {
   const username = $("loginUsername").value.trim();
@@ -198,6 +184,11 @@ function show(id, btn) {
     purchase: "Stock In",
     movements: "Stock History",
     reports: "Reports",
+    analytics: "Analytics",
+    profitLoss: "Profit & Loss",
+    suppliers: "Suppliers",
+    customers: "Customers",
+    settings: "Settings",
     deletedInvoices: "Deleted Invoices",
     users: "Users",
     backup: "Backup"
@@ -216,6 +207,11 @@ function show(id, btn) {
   if (id === "purchase") loadMeds();
   if (id === "movements") loadMovements();
   if (id === "reports") loadReports();
+  if (id === "analytics") loadAnalytics();
+  if (id === "profitLoss") loadProfitLoss();
+  if (id === "suppliers") loadSuppliers();
+  if (id === "customers") loadCustomers();
+  if (id === "settings") loadPharmacyProfile();
   if (id === "deletedInvoices") loadDeletedInvoices();
   if (id === "users") loadUsers();
 }
@@ -299,10 +295,16 @@ async function loadDash() {
     if ($("low")) $("low").textContent = d.low || 0;
     if ($("expired")) $("expired").textContent = d.expired || 0;
     if ($("today")) $("today").textContent = money(d.today);
+    if ($("todayProfit")) $("todayProfit").textContent = money(d.today_profit);
+    if ($("monthSales")) $("monthSales").textContent = money(d.month_sales);
+    if ($("monthProfit")) $("monthProfit").textContent = money(d.month_profit);
 
     if ($("nearExpiry")) {
       $("nearExpiry").textContent = d.near_expiry || 0;
     }
+
+    loadAnalytics();
+    loadDashboardNotifications();
 
     if ($("dashboardAlerts")) {
       try {
@@ -327,7 +329,7 @@ async function loadDash() {
                 <div class="stock-alert-item">
                   <div class="stock-alert-info">
                     <b>${esc(m.name)}</b>
-                    <span>Stock: ${esc(m.stock)} — Minimum: ${esc(m.min_stock)}</span>
+                    <span>${Number(m.stock)===0 ? '🔴 Out of stock' : `Stock: ${esc(m.stock)} — Minimum: ${esc(m.min_stock)}`}</span>
                   </div>
                   <button type="button" onclick="editLowStockMedicine(${Number(m.id)})">
                     ✏️ Edit
@@ -432,7 +434,9 @@ async function loadMeds() {
             <small>${esc(m.generic || "")}</small>
           </td>
 
-          <td>${esc(m.company || "")}</td>
+          <td>${esc(m.company || m.manufacturer || "")}</td>
+
+          <td>${esc(m.barcode || "")}</td>
 
           <td>${esc(m.batch || "")}</td>
 
@@ -453,9 +457,7 @@ async function loadMeds() {
               Edit
             </button>
 
-            <button onclick="delMed(${m.id})">
-              Delete
-            </button>
+            ${currentUser?.role === "admin" ? `<button onclick="delMed(${m.id})">Delete</button>` : ""}
           </td>
         </tr>
       `;
@@ -502,6 +504,8 @@ function openMed(m = null) {
     "generic",
     "company",
     "category",
+    "manufacturer",
+    "barcode",
     "batch",
     "expiry"
   ].forEach(k => {
@@ -541,6 +545,8 @@ async function saveMed() {
     generic: $("generic").value,
     company: $("company").value,
     category: $("category").value,
+    manufacturer: $("manufacturer")?.value || "",
+    barcode: $("barcode")?.value || "",
     batch: $("batch").value,
     expiry: $("expiry").value,
     purchase: $("medPurchase").value,
@@ -723,6 +729,10 @@ async function completeSale() {
         customer,
         mobile: $("customerMobile")?.value || "",
         discount,
+        payment_method: $("paymentMethod")?.value || "Cash",
+        payment_status: $("paymentStatus")?.value || "Paid",
+        paid_amount: $("paidAmount")?.value || "",
+        payment_details: $("paymentDetails")?.value || "",
         items: cart.map(x => ({
           id: x.id,
           qty: x.qty
@@ -764,8 +774,12 @@ async function completeSale() {
     if ($("customerMobile"))
       $("customerMobile").value = "";
 
-    if ($("discount"))
-      $("discount").value = "";
+    if ($("discount")) $("discount").value = "";
+    if ($("paymentMethod")) $("paymentMethod").value = "";
+    if ($("paymentStatus")) $("paymentStatus").value = "";
+    if ($("paidAmount")) $("paidAmount").value = "";
+    if ($("paymentDetails")) $("paymentDetails").value = "";
+    if ($("saleBarcode")) $("saleBarcode").value = "";
 
     if ($("saleQty"))
       $("saleQty").value = "";
@@ -786,6 +800,72 @@ async function completeSale() {
   }
 }
 
+async function loadDashboardNotifications(){
+  const box=$("dashboardNotifications"); if(!box)return;
+  try{const r=await fetch('/api/stock-movements');if(!r.ok)return;const rows=await r.json();const recent=rows.filter(x=>String(x.movement_type||'').toUpperCase()==='STOCK_IN').slice(0,5);box.innerHTML=recent.length?recent.map(x=>`<div class="notification-row"><span>📦 <b>${esc(x.name||'Medicine')}</b> — ${x.quantity} units${x.batch?` · Batch ${esc(x.batch)}`:''}</span><small>${esc(String(x.created_at||'').replace('T',' '))}</small></div>`).join(''):'No recent stock-in notifications.';}catch(e){box.innerHTML='Unable to load notifications.';}
+}
+
+/* =========================
+   BARCODE SCANNER
+========================= */
+function barcodeKeydown(e){
+  if(e.key!=="Enter") return; e.preventDefault();
+  const code=String($("saleBarcode")?.value||"").trim(); if(!code)return;
+  const m=meds.find(x=>String(x.barcode||"").trim()===code);
+  if(!m){alert("Medicine barcode not found.");return;}
+  $("saleMed").value=String(m.id); $("saleQty").value="1"; addCart(); $("saleBarcode").value=""; $("saleBarcode").focus();
+}
+async function startBarcodeScanner(){
+  const input=$("saleBarcode"); if(!input)return;
+  if(!window.BarcodeDetector||!navigator.mediaDevices?.getUserMedia){alert("Camera barcode scanning is not supported here. You can use a USB barcode scanner or enter the barcode manually.");input.focus();return;}
+  try{
+    const detector=new BarcodeDetector({formats:["ean_13","ean_8","upc_a","upc_e","code_128","code_39"]});
+    const stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:"environment"}}});
+    const wrap=document.createElement("div"); wrap.className="scanner-overlay";
+    wrap.innerHTML='<div class="scanner-box"><h3>📷 Scan Barcode</h3><video autoplay playsinline></video><button type="button">Close</button></div>';
+    document.body.appendChild(wrap); const video=wrap.querySelector("video"); video.srcObject=stream;
+    const close=()=>{stream.getTracks().forEach(t=>t.stop());wrap.remove();}; wrap.querySelector("button").onclick=close;
+    const scan=async()=>{if(!document.body.contains(wrap))return;try{const codes=await detector.detect(video);if(codes.length){input.value=codes[0].rawValue;close();barcodeKeydown({key:"Enter",preventDefault(){}});return;}}catch(e){}requestAnimationFrame(scan);}; requestAnimationFrame(scan);
+  }catch(e){alert("Camera access was not available. Please allow camera access or use a barcode scanner.");input.focus();}
+}
+
+/* =========================
+   ANALYTICS / PROFIT & LOSS
+========================= */
+async function loadAnalytics(){
+  const r=await fetch("/api/analytics"); if(!r.ok)return; const d=await r.json();
+  if($("todayProfit"))$("todayProfit").textContent=money(d.today_profit);
+  if($("monthSales"))$("monthSales").textContent=money(d.month_sales);
+  if($("monthProfit"))$("monthProfit").textContent=money(d.month_profit);
+  const charts=[$("salesChart"),$("salesChartAnalytics")].filter(Boolean),bests=[$("bestSellers"),$("bestSellersAnalytics")].filter(Boolean);
+  const max=Math.max(1,...(d.daily||[]).map(x=>Number(x.sales||0)));
+  const chartHtml=(d.daily||[]).map(x=>`<div class="bar-row"><span>${esc(String(x.day).slice(5))}</span><div class="bar"><i style="width:${Math.round(Number(x.sales||0)/max*100)}%"></i></div><b>${money(x.sales)}</b></div>`).join("")||'<p class="muted">No sales yet.</p>';
+  charts.forEach(chart=>chart.innerHTML=chartHtml);
+  const bestHtml=(d.best_sellers||[]).map((x,i)=>`<div class="rank-row"><b>#${i+1}</b><span>${esc(x.name)}</span><strong>${x.qty} units</strong><em>${money(x.profit)} profit</em></div>`).join("")||'<p class="muted">No sales yet.</p>';
+  bests.forEach(best=>best.innerHTML=bestHtml);
+}
+async function loadProfitLoss(){
+  const r=await fetch('/api/profit-loss?start='+encodeURIComponent($("plStart")?.value||"")+'&end='+encodeURIComponent($("plEnd")?.value||""));if(!r.ok)return;const d=await r.json();
+  $("plSummary").innerHTML=`<div class="card"><span>Sales</span><b>${money(d.summary.sales)}</b></div><div class="card"><span>Cost</span><b>${money(d.summary.cost)}</b></div><div class="card profit-card"><span>Gross Profit</span><b>${money(d.summary.profit)}</b></div>`;
+  $("plReport").innerHTML=d.rows.length?`<div class="tablewrap"><table><tr><th>Invoice</th><th>Date</th><th>Customer</th><th>Sales</th><th>Cost</th><th>Profit</th></tr>${d.rows.map(x=>`<tr><td>${esc(x.invoice)}</td><td>${esc(String(x.created_at||"").replace("T"," "))}</td><td>${esc(x.customer)}</td><td>${money(x.total)}</td><td>${money(x.cost)}</td><td>${money(x.gross_profit)}</td></tr>`).join("")}</table></div>`:'<p class="muted">No sales in this period.</p>';
+}
+
+/* =========================
+   SUPPLIERS / CUSTOMERS
+========================= */
+async function loadSuppliers(){const r=await fetch('/api/suppliers');if(!r.ok)return;const rows=await r.json();$("supplierList").innerHTML=rows.length?`<div class="tablewrap"><table><tr><th>Supplier</th><th>Phone</th><th>Purchases</th><th>Owed</th><th>Action</th></tr>${rows.map(x=>`<tr><td><b>${esc(x.name)}</b></td><td>${esc(x.phone)}</td><td>${money(x.total_purchases||0)}</td><td>${money(x.outstanding||0)}</td><td><button onclick="viewSupplier(${x.id})">History</button>${currentUser?.role==='admin'?` <button class="danger" onclick="deleteSupplier(${x.id})">Delete</button>`:""}</td></tr>`).join("")}</table></div>`:'No suppliers yet.';}
+async function saveSupplier(){const d={name:$("supplierName").value,phone:$("supplierPhone").value,address:$("supplierAddress").value};const r=await fetch('/api/suppliers',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(d)});const j=await r.json();if(!r.ok){$("supplierMsg").innerHTML=`<div class="msg error">${esc(j.error)}</div>`;return;}$("supplierName").value=$("supplierPhone").value=$("supplierAddress").value="";$("supplierMsg").innerHTML='<div class="msg">Supplier saved.</div>';loadSuppliers();}
+async function deleteSupplier(id){if(!confirm('Delete this supplier?'))return;await fetch('/api/suppliers/'+id,{method:'DELETE'});loadSuppliers();}
+async function viewSupplier(id){const r=await fetch('/api/suppliers/'+id+'/purchases');const d=await r.json();alert((d.purchases||[]).map(x=>`${x.created_at} — ${x.name} — ${x.quantity} units — ${money(Number(x.purchase_price||0)*Number(x.quantity||0))}`).join("\n")||'No purchase history.');}
+async function loadCustomers(){const r=await fetch('/api/customers');if(!r.ok)return;const rows=await r.json();$("customerList").innerHTML=rows.length?`<div class="tablewrap"><table><tr><th>Customer</th><th>Mobile</th><th>Purchases</th><th>Outstanding</th><th>Action</th></tr>${rows.map(x=>`<tr><td><b>${esc(x.name)}</b></td><td>${esc(x.mobile)}</td><td>${money(x.total_purchases||0)}</td><td>${money(x.outstanding||0)}</td><td><button onclick="viewCustomer(${x.id})">History</button></td></tr>`).join("")}</table></div>`:'No customers yet.';}
+async function saveCustomer(){const d={name:$("customerName").value,mobile:$("customerPhone").value,address:$("customerAddress").value};const r=await fetch('/api/customers',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(d)});const j=await r.json();if(!r.ok){$("customerMsg").innerHTML=`<div class="msg error">${esc(j.error)}</div>`;return;}$("customerName").value=$("customerPhone").value=$("customerAddress").value="";$("customerMsg").innerHTML='<div class="msg">Customer saved.</div>';loadCustomers();}
+async function viewCustomer(id){const r=await fetch('/api/customers/'+id+'/history');const d=await r.json();alert((d.sales||[]).map(x=>`${x.invoice} — ${x.created_at} — ${money(x.total)} — ${x.payment_status}`).join("\n")||'No purchase history.');}
+
+function loadPharmacyProfile(){const p=JSON.parse(localStorage.getItem('pharmastock-profile')||'{}');['pharmacyName','pharmacyPhone','pharmacyAddress'].forEach(k=>{if($(k))$(k).value=p[k]||'';});}
+function savePharmacyProfile(){const file=$("pharmacyLogo")?.files?.[0];const old=JSON.parse(localStorage.getItem('pharmastock-profile')||'{}');const p={pharmacyName:$("pharmacyName").value,pharmacyPhone:$("pharmacyPhone").value,pharmacyAddress:$("pharmacyAddress").value,logo:old.logo||''};const done=()=>{localStorage.setItem('pharmastock-profile',JSON.stringify(p));$("profileMsg").innerHTML='<div class="msg">Pharmacy profile saved.</div>';};if(file){const rd=new FileReader();rd.onload=()=>{p.logo=rd.result;done();};rd.readAsDataURL(file);}else done();}
+
+async function loadAuditLogs(){if(!$("auditList")||currentUser?.role!=="admin")return;const r=await fetch("/api/audit-logs");if(!r.ok)return;const rows=await r.json();$("auditList").innerHTML=rows.length?`<div class="tablewrap"><table><tr><th>User</th><th>Action</th><th>Details</th><th>Date/Time</th></tr>${rows.map(x=>`<tr><td>${esc(x.username)}</td><td>${esc(x.action)}</td><td>${esc(x.details)}</td><td>${esc(String(x.created_at||"").replace("T"," "))}</td></tr>`).join("")}</table></div>`:"No activity yet.";}
+
 /* =========================
    PRINT INVOICE
 ========================= */
@@ -801,6 +881,11 @@ async function printInvoice(invoice) {
     const data = await r.json();
     const sale = data.sale || {};
     const items = data.items || [];
+    const profile = JSON.parse(localStorage.getItem("pharmastock-profile") || "{}");
+    const profileName = profile.pharmacyName || "PharmaStock";
+    const profilePhone = profile.pharmacyPhone || "";
+    const profileAddress = profile.pharmacyAddress || "";
+    const profileLogo = profile.logo || "";
 
     const calculatedSubtotal = items.reduce((sum, item) => {
       return sum + (Number(item.quantity || 0) * Number(item.price || 0));
@@ -886,7 +971,7 @@ async function printInvoice(invoice) {
       <body>
         <div class="invoice">
           <div class="top">
-            <div><div class="brand"><span>💊</span> PharmaStock</div><div class="tag">Professional Pharmacy Management</div></div>
+            <div><div class="brand">${profileLogo ? `<img src="${profileLogo}" style="width:38px;height:38px;object-fit:contain;vertical-align:middle;margin-right:7px">` : '<span>💊</span>'} ${esc(profileName)}</div><div class="tag">${esc(profileAddress)}${profilePhone ? ` · ${esc(profilePhone)}` : ''}</div></div>
             <div class="invoice-title"><h1>SALES INVOICE</h1><p>Original Customer Copy</p></div>
           </div>
 
@@ -896,7 +981,8 @@ async function printInvoice(invoice) {
             <div><b>Time</b><span>${esc(invoiceTime || "—")}</span></div>
             <div><b>Customer</b><span>${esc(sale.customer || "Walk-in Customer")}</span></div>
             <div><b>Mobile</b><span>${esc(sale.mobile || "—")}</span></div>
-            <div><b>Payment</b><span>Cash / Counter Sale</span></div>
+            <div><b>Payment</b><span>${esc(sale.payment_method || "Cash")} — ${esc(sale.payment_status || "Paid")}</span></div>
+            <div><b>Paid Amount</b><span>${money(sale.paid_amount || invoiceTotal)}</span></div>
           </div>
 
           <table>
@@ -911,7 +997,7 @@ async function printInvoice(invoice) {
           </div>
 
           <div class="footer">Thank you for choosing PharmaStock.<br>Please keep this invoice for your records.</div>
-          <div class="print"><button onclick="window.print()">🖨️ Print Invoice</button></div>
+          <div class="print"><button onclick="window.print()">🖨️ Print / Save PDF</button></div>
         </div>
       </body>
       </html>`);
@@ -1123,7 +1209,7 @@ function renderDeletedInvoices() {
             <td class="report-actions">
               <button class="btn-small" onclick="printDeletedInvoice('${esc(x.invoice)}')">🖨️ Backup / Print</button>
               <button class="btn-small" onclick="restoreDeletedInvoice('${esc(x.invoice)}')">↩️ Restore</button>
-              <button class="btn-small danger" onclick="permanentlyDeleteInvoice('${esc(x.invoice)}')">🗑️ Delete Permanently</button>
+              ${currentUser?.role === "admin" ? `<button class="btn-small danger" onclick="permanentlyDeleteInvoice('${esc(x.invoice)}')">🗑️ Delete Permanently</button>` : ""}
             </td>
           </tr>`;
       }).join('')}
@@ -1295,7 +1381,7 @@ async function loadReports() {
 
 async function loadUsers() {
 
-  if (!$("userRows"))
+  if (!$("userList"))
     return;
 
   if (currentUser?.role !== "admin")
@@ -1306,36 +1392,20 @@ async function loadUsers() {
     const r = await fetch("/api/users");
 
     if (!r.ok) {
-      $("userRows").innerHTML =
-        '<tr><td colspan="5">Access denied.</td></tr>';
+      $("userList").innerHTML =
+        '<div class="msg error">Access denied.</div>';
       return;
     }
 
     const users = await r.json();
 
-    $("userRows").innerHTML =
-      users.length
-        ? users.map(u => `
-          <tr>
-            <td>${esc(u.username)}</td>
-            <td>${esc(u.role)}</td>
-            <td>${u.active ? "Active" : "Disabled"}</td>
-            <td>${esc(u.created_at || "")}</td>
-            <td>
-              ${
-                u.username !== currentUser.username
-                  ? `<button onclick="deleteUser(${u.id})">Delete</button>`
-                  : "Current user"
-              }
-            </td>
-          </tr>
-        `).join("")
-        : '<tr><td colspan="5">No users.</td></tr>';
+    $("userList").innerHTML = users.length ? `<div class="tablewrap"><table><tr><th>Username</th><th>Role</th><th>Status</th><th>Created</th><th>Action</th></tr>${users.map(u => `<tr><td>${esc(u.username)}</td><td>${esc(u.role)}</td><td>${u.active ? "Active" : "Disabled"}</td><td>${esc(u.created_at || "")}</td><td>${u.username !== currentUser.username ? `<button onclick="toggleUser(${u.id},${u.active ? 'false':'true'})">${u.active ? 'Disable' : 'Enable'}</button>` : 'Current user'}</td></tr>`).join('')}</table></div>` : 'No users.';
 
   } catch (e) {
 
     console.error("Users error:", e);
   }
+  loadAuditLogs();
 }
 
 async function createUser() {
@@ -1383,6 +1453,8 @@ async function createUser() {
     alert("Server error.");
   }
 }
+
+async function toggleUser(id, active){if(!confirm(active?'Enable this user?':'Disable this user?'))return;const r=await fetch('/api/users/'+id+'/status',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({active})});const j=await r.json();if(!r.ok){alert(j.error||'Could not update user.');return;}loadUsers();}
 
 async function deleteUser(id) {
 
@@ -1432,6 +1504,8 @@ document.addEventListener("DOMContentLoaded", () => {
     $("discount").addEventListener("input", renderCart);
   }
 
+  if($("plStart")){const d=new Date();d.setDate(1);$("plStart").value=d.toISOString().slice(0,10);}
+  if($("plEnd"))$("plEnd").value=new Date().toISOString().slice(0,10);
   checkSession();
 });
 

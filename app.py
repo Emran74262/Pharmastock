@@ -76,6 +76,8 @@ CREATE TABLE IF NOT EXISTS medicines(
     generic TEXT DEFAULT '',
     company TEXT DEFAULT '',
     category TEXT DEFAULT '',
+    manufacturer TEXT DEFAULT '',
+    barcode TEXT DEFAULT '',
     batch TEXT DEFAULT '',
     expiry DATE,
     purchase NUMERIC(12,2) DEFAULT 0,
@@ -90,7 +92,11 @@ CREATE TABLE IF NOT EXISTS sales(
     customer TEXT DEFAULT 'Walk-in',
     mobile TEXT DEFAULT '',
     total NUMERIC(12,2) NOT NULL,
-    created_at TIMESTAMP NOT NULL
+    created_at TIMESTAMP NOT NULL,
+    payment_method TEXT DEFAULT 'Cash',
+    payment_status TEXT DEFAULT 'Paid',
+    paid_amount NUMERIC(12,2) DEFAULT 0,
+    payment_details TEXT DEFAULT ''
 );
 
 CREATE TABLE IF NOT EXISTS medicine_batches(
@@ -111,6 +117,7 @@ CREATE TABLE IF NOT EXISTS sale_items(
     medicine_id INTEGER REFERENCES medicines(id),
     quantity INTEGER NOT NULL,
     price NUMERIC(12,2) NOT NULL,
+    purchase_price NUMERIC(12,2) DEFAULT 0,
     batch_id INTEGER REFERENCES medicine_batches(id)
 );
 
@@ -135,6 +142,7 @@ CREATE TABLE IF NOT EXISTS purchases(
     expiry DATE,
     quantity INTEGER NOT NULL,
     purchase_price NUMERIC(12,2) DEFAULT 0,
+    paid_amount NUMERIC(12,2) DEFAULT 0,
     created_at TIMESTAMP NOT NULL
 );
 
@@ -157,6 +165,22 @@ CREATE TABLE IF NOT EXISTS stock_movements(
     note TEXT DEFAULT '',
     created_at TIMESTAMP NOT NULL,
     username TEXT DEFAULT ''
+);
+
+CREATE TABLE IF NOT EXISTS suppliers(
+    id SERIAL PRIMARY KEY,
+    name TEXT UNIQUE NOT NULL,
+    phone TEXT DEFAULT '',
+    address TEXT DEFAULT '',
+    created_at TIMESTAMP NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS customers(
+    id SERIAL PRIMARY KEY,
+    name TEXT UNIQUE NOT NULL,
+    mobile TEXT DEFAULT '',
+    address TEXT DEFAULT '',
+    created_at TIMESTAMP NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS audit_logs(
@@ -198,6 +222,16 @@ def init_db():
             ALTER TABLE sale_items
             ADD COLUMN IF NOT EXISTS batch_id INTEGER REFERENCES medicine_batches(id)
         """))
+
+        conn.execute(text("ALTER TABLE medicines ADD COLUMN IF NOT EXISTS manufacturer TEXT DEFAULT ''"))
+        conn.execute(text("ALTER TABLE medicines ADD COLUMN IF NOT EXISTS barcode TEXT DEFAULT ''"))
+        conn.execute(text("ALTER TABLE sales ADD COLUMN IF NOT EXISTS payment_method TEXT DEFAULT 'Cash'"))
+        conn.execute(text("ALTER TABLE sales ADD COLUMN IF NOT EXISTS payment_status TEXT DEFAULT 'Paid'"))
+        conn.execute(text("ALTER TABLE sales ADD COLUMN IF NOT EXISTS paid_amount NUMERIC(12,2) DEFAULT 0"))
+        conn.execute(text("ALTER TABLE sales ADD COLUMN IF NOT EXISTS payment_details TEXT DEFAULT ''"))
+        conn.execute(text("ALTER TABLE sale_items ADD COLUMN IF NOT EXISTS purchase_price NUMERIC(12,2) DEFAULT 0"))
+        conn.execute(text("ALTER TABLE purchases ADD COLUMN IF NOT EXISTS paid_amount NUMERIC(12,2) DEFAULT 0"))
+
 
         # -------------------------------------------------
         # INITIAL ADMIN ACCOUNT
@@ -1006,6 +1040,11 @@ def dashboard():
             }
         ).scalar()
 
+        month_start = today.replace(day=1)
+        today_profit = c.execute(text("""SELECT COALESCE(SUM(si.quantity*(si.price-si.purchase_price)),0) FROM sale_items si JOIN sales s ON s.id=si.sale_id WHERE s.created_at::date=:today"""), {"today":today}).scalar()
+        month_sales = c.execute(text("SELECT COALESCE(SUM(total),0) FROM sales WHERE created_at::date>=:d"), {"d":month_start}).scalar()
+        month_profit = c.execute(text("""SELECT COALESCE(SUM(si.quantity*(si.price-si.purchase_price)),0) FROM sale_items si JOIN sales s ON s.id=si.sale_id WHERE s.created_at::date>=:d"""), {"d":month_start}).scalar()
+
     return jsonify(
         total_products=int(
             total_products or 0
@@ -1025,9 +1064,10 @@ def dashboard():
         near_expiry=int(
             near_expiry or 0
         ),
-        today=float(
-            today_sales or 0
-        )
+        today=float(today_sales or 0),
+        today_profit=float(today_profit or 0),
+        month_sales=float(month_sales or 0),
+        month_profit=float(month_profit or 0)
     )
 
 
@@ -1061,6 +1101,8 @@ def medicines():
                     OR generic ILIKE :q
                     OR company ILIKE :q
                     OR category ILIKE :q
+                    OR manufacturer ILIKE :q
+                    OR barcode ILIKE :q
                     OR batch ILIKE :q
                     ORDER BY name
                 """),
@@ -1131,6 +1173,8 @@ def add_medicine():
                         generic,
                         company,
                         category,
+                        manufacturer,
+                        barcode,
                         batch,
                         expiry,
                         purchase,
@@ -1144,6 +1188,8 @@ def add_medicine():
                         :generic,
                         :company,
                         :category,
+                        :manufacturer,
+                        :barcode,
                         :batch,
                         NULLIF(:expiry,'')::date,
                         :purchase,
@@ -1170,6 +1216,8 @@ def add_medicine():
                         "category",
                         ""
                     ),
+                    "manufacturer": d.get("manufacturer", ""),
+                    "barcode": d.get("barcode", ""),
                     "batch": d.get(
                         "batch",
                         ""
@@ -1282,6 +1330,8 @@ def edit_medicine(mid):
                         generic=:generic,
                         company=:company,
                         category=:category,
+                        manufacturer=:manufacturer,
+                        barcode=:barcode,
                         batch=:batch,
                         expiry=NULLIF(:expiry,'')::date,
                         purchase=:purchase,
@@ -1308,6 +1358,8 @@ def edit_medicine(mid):
                         "category",
                         ""
                     ),
+                    "manufacturer": d.get("manufacturer", ""),
+                    "barcode": d.get("barcode", ""),
                     "batch": d.get(
                         "batch",
                         ""
@@ -1542,9 +1594,8 @@ def purchase():
                 "Quantity must be greater than zero"
             )
 
-        price = float(
-            d.get("purchase_price") or 0
-        )
+        price = max(0.0, float(d.get("purchase_price") or 0))
+        paid_amount = max(0.0, min(qty * price, float(d.get("paid_amount") or 0)))
 
         batch = d.get(
             "batch",
@@ -1683,6 +1734,7 @@ def purchase():
                         expiry,
                         quantity,
                         purchase_price,
+                        paid_amount,
                         created_at
                     )
                     VALUES
@@ -1695,6 +1747,7 @@ def purchase():
                         )::date,
                         :qty,
                         :price,
+                        :paid_amount,
                         :now
                     )
                 """),
@@ -1708,9 +1761,14 @@ def purchase():
                     "expiry": expiry,
                     "qty": qty,
                     "price": price,
+                    "paid_amount": paid_amount,
                     "now": bd_now_naive()
                 }
             )
+
+            supplier_name = str(d.get("supplier") or "").strip()
+            if supplier_name:
+                c.execute(text("""INSERT INTO suppliers(name,phone,address,created_at) VALUES(:n,'','',:now) ON CONFLICT(name) DO NOTHING"""), {"n":supplier_name,"now":bd_now_naive()})
 
             user = current_user()
 
@@ -1852,11 +1910,11 @@ def sale():
                     )
 
                 if qty > medicine["stock"]:
+                    raise ValueError(f"Insufficient stock: {medicine['name']}")
 
-                    raise ValueError(
-                        f"Insufficient stock: "
-                        f"{medicine['name']}"
-                    )
+                sellable = c.execute(text("""SELECT COALESCE(SUM(stock),0) FROM medicine_batches WHERE medicine_id=:id AND stock>0 AND (expiry IS NULL OR expiry>=:today)"""), {"id":mid,"today":bd_today()}).scalar()
+                if qty > int(sellable or 0):
+                    raise ValueError(f"Only {int(sellable or 0)} non-expired units available for {medicine['name']}")
 
                 subtotal += (
                     float(medicine["price"])
@@ -1875,10 +1933,21 @@ def sale():
 
                 discount = subtotal
 
-            total = (
-                subtotal
-                - discount
-            )
+            total = subtotal - discount
+
+            payment_method = str(d.get("payment_method") or "Cash").strip()
+            if payment_method not in ("Cash","bKash","Nagad","Card","Bank","Mixed"):
+                payment_method = "Cash"
+            paid_amount = max(0.0, min(total, float(d.get("paid_amount") or total)))
+            payment_status = str(d.get("payment_status") or "Paid").strip()
+            if payment_status not in ("Paid","Partial","Due"):
+                payment_status = "Paid"
+            if paid_amount >= total:
+                payment_status = "Paid"
+            elif paid_amount <= 0:
+                payment_status = "Due"
+            else:
+                payment_status = "Partial"
 
             sid = c.execute(
                 text("""
@@ -1890,7 +1959,11 @@ def sale():
                         subtotal,
                         discount,
                         total,
-                        created_at
+                        created_at,
+                        payment_method,
+                        payment_status,
+                        paid_amount,
+                        payment_details
                     )
                     VALUES
                     (
@@ -1900,7 +1973,11 @@ def sale():
                         :subtotal,
                         :discount,
                         :total,
-                        :created_at
+                        :created_at,
+                        :payment_method,
+                        :payment_status,
+                        :paid_amount,
+                        :payment_details
                     )
                     RETURNING id
                 """),
@@ -1913,9 +1990,18 @@ def sale():
                     "subtotal": subtotal,
                     "discount": discount,
                     "total": total,
-                    "created_at": bd_now_naive()
+                    "created_at": bd_now_naive(),
+                    "payment_method": payment_method,
+                    "payment_status": payment_status,
+                    "paid_amount": paid_amount,
+                    "payment_details": str(d.get("payment_details") or "")
                 }
             ).scalar_one()
+
+            customer_name = str(d.get("customer") or "Walk-in").strip()
+            customer_mobile = str(d.get("mobile") or "").strip()
+            if customer_name and customer_name.lower() != "walk-in":
+                c.execute(text("""INSERT INTO customers(name,mobile,address,created_at) VALUES(:n,:m,'',:now) ON CONFLICT(name) DO UPDATE SET mobile=CASE WHEN :m<>'' THEN EXCLUDED.mobile ELSE customers.mobile END"""), {"n":customer_name,"m":customer_mobile,"now":bd_now_naive()})
 
             user = current_user()
 
@@ -1971,6 +2057,7 @@ def sale():
                                 medicine_id,
                                 quantity,
                                 price,
+                                purchase_price,
                                 batch_id
                             )
                             VALUES
@@ -1979,6 +2066,7 @@ def sale():
                                 :mid,
                                 :qty,
                                 :price,
+                                :purchase_price,
                                 :batch_id
                             )
                         """),
@@ -1987,6 +2075,7 @@ def sale():
                             "mid": medicine["id"],
                             "qty": take,
                             "price": medicine["price"],
+                            "purchase_price": batch["purchase_price"] or 0,
                             "batch_id": batch["id"]
                         }
                     )
@@ -2105,8 +2194,8 @@ def sales_report():
 @app.delete("/api/sales/<invoice>")
 def delete_sale(invoice):
 
-    if not login_required():
-        return jsonify(error="Login required"), 401
+    if not admin_required():
+        return jsonify(error="Admin access required"), 403
 
     try:
         purge_expired_deleted_invoices()
@@ -2395,8 +2484,8 @@ def restore_deleted_invoice(invoice):
 @app.delete("/api/deleted-invoices/<invoice>")
 def permanently_delete_invoice(invoice):
 
-    if not login_required():
-        return jsonify(error="Login required"), 401
+    if not admin_required():
+        return jsonify(error="Admin access required"), 403
 
     try:
         with engine.begin() as c:
@@ -2471,6 +2560,161 @@ def get_sale(invoice):
         ]
     )
 
+
+
+# =========================================================
+# ANALYTICS / PROFIT & LOSS
+# =========================================================
+
+@app.get("/api/analytics")
+def analytics():
+    if not login_required():
+        return jsonify(error="Login required"), 401
+    today = bd_today()
+    month_start = today.replace(day=1)
+    with engine.connect() as c:
+        today_sales = c.execute(text("SELECT COALESCE(SUM(total),0) FROM sales WHERE created_at::date=:d"), {"d": today}).scalar()
+        month_sales = c.execute(text("SELECT COALESCE(SUM(total),0) FROM sales WHERE created_at::date>=:d"), {"d": month_start}).scalar()
+        today_profit = c.execute(text("""
+            SELECT COALESCE(SUM(si.quantity * (si.price-si.purchase_price)),0)
+            FROM sale_items si JOIN sales s ON s.id=si.sale_id
+            WHERE s.created_at::date=:d
+        """), {"d": today}).scalar()
+        month_profit = c.execute(text("""
+            SELECT COALESCE(SUM(si.quantity * (si.price-si.purchase_price)),0)
+            FROM sale_items si JOIN sales s ON s.id=si.sale_id
+            WHERE s.created_at::date>=:d
+        """), {"d": month_start}).scalar()
+        stock_value = c.execute(text("SELECT COALESCE(SUM(stock*purchase),0) FROM medicines")).scalar()
+        best = c.execute(text("""
+            SELECT m.name, SUM(si.quantity) qty, COALESCE(SUM(si.quantity*si.price),0) sales,
+                   COALESCE(SUM(si.quantity*(si.price-si.purchase_price)),0) profit
+            FROM sale_items si JOIN medicines m ON m.id=si.medicine_id JOIN sales s ON s.id=si.sale_id
+            WHERE s.created_at::date>=:d GROUP BY m.id,m.name ORDER BY qty DESC LIMIT 5
+        """), {"d": month_start}).mappings().all()
+        daily = c.execute(text("""
+            SELECT created_at::date day, COALESCE(SUM(total),0) sales,
+                   COALESCE(SUM((SELECT SUM(si2.quantity*(si2.price-si2.purchase_price)) FROM sale_items si2 WHERE si2.sale_id=s.id)),0) profit
+            FROM sales s WHERE created_at::date>=:d GROUP BY created_at::date ORDER BY day
+        """), {"d": today-timedelta(days=29)}).mappings().all()
+    return jsonify(today_sales=float(today_sales or 0), month_sales=float(month_sales or 0), today_profit=float(today_profit or 0), month_profit=float(month_profit or 0), stock_value=float(stock_value or 0), best_sellers=[dict(x) for x in best], daily=[dict(x) for x in daily])
+
+@app.get("/api/profit-loss")
+def profit_loss():
+    if not login_required(): return jsonify(error="Login required"), 401
+    start = request.args.get("start", "")
+    end = request.args.get("end", "")
+    try:
+        start_d = datetime.strptime(start, "%Y-%m-%d").date() if start else bd_today().replace(day=1)
+        end_d = datetime.strptime(end, "%Y-%m-%d").date() if end else bd_today()
+    except ValueError:
+        return jsonify(error="Invalid dates"), 400
+    with engine.connect() as c:
+        rows=c.execute(text("""
+            SELECT s.invoice,s.created_at,s.customer,s.total,
+                   COALESCE(SUM(si.quantity*si.price),0) gross_sales,
+                   COALESCE(SUM(si.quantity*si.purchase_price),0) cost,
+                   COALESCE(SUM(si.quantity*(si.price-si.purchase_price)),0) gross_profit
+            FROM sales s LEFT JOIN sale_items si ON si.sale_id=s.id
+            WHERE s.created_at::date BETWEEN :a AND :b
+            GROUP BY s.id ORDER BY s.created_at DESC
+        """), {"a":start_d,"b":end_d}).mappings().all()
+    return jsonify(rows=[dict(x) for x in rows], summary={"sales":float(sum((x["total"] or 0) for x in rows)),"cost":float(sum((x["cost"] or 0) for x in rows)),"profit":float(sum((x["gross_profit"] or 0) for x in rows))})
+
+# =========================================================
+# SUPPLIERS
+# =========================================================
+@app.get("/api/suppliers")
+def suppliers():
+    if not login_required(): return jsonify(error="Login required"), 401
+    with engine.connect() as c:
+        rows=c.execute(text("""
+            SELECT sp.*, COALESCE(SUM(p.quantity*p.purchase_price),0) total_purchases,
+                   COALESCE(SUM(p.quantity*p.purchase_price-p.paid_amount),0) outstanding
+            FROM suppliers sp LEFT JOIN purchases p ON lower(p.supplier)=lower(sp.name)
+            GROUP BY sp.id ORDER BY sp.name
+        """)).mappings().all()
+    return jsonify([dict(x) for x in rows])
+
+@app.post("/api/suppliers")
+def add_supplier():
+    if not login_required(): return jsonify(error="Login required"), 401
+    d=request.json or {}; name=str(d.get("name") or "").strip()
+    if not name: return jsonify(error="Supplier name is required"),400
+    try:
+        with engine.begin() as c:
+            sid=c.execute(text("INSERT INTO suppliers(name,phone,address,created_at) VALUES(:n,:p,:a,:now) ON CONFLICT(name) DO UPDATE SET phone=EXCLUDED.phone,address=EXCLUDED.address RETURNING id"), {"n":name,"p":str(d.get("phone") or ""),"a":str(d.get("address") or ""),"now":bd_now_naive()}).scalar_one()
+        log_action("ADD_SUPPLIER",name); return jsonify(ok=True,id=sid)
+    except Exception as e: return jsonify(error=str(e)),400
+
+@app.delete("/api/suppliers/<int:sid>")
+def delete_supplier(sid):
+    if not admin_required(): return jsonify(error="Admin access required"),403
+    with engine.begin() as c: c.execute(text("DELETE FROM suppliers WHERE id=:id"),{"id":sid})
+    return jsonify(ok=True)
+
+@app.get("/api/suppliers/<int:sid>/purchases")
+def supplier_purchases(sid):
+    if not login_required(): return jsonify(error="Login required"),401
+    with engine.connect() as c:
+        supplier=c.execute(text("SELECT * FROM suppliers WHERE id=:id"),{"id":sid}).mappings().first()
+        if not supplier: return jsonify(error="Supplier not found"),404
+        rows=c.execute(text("SELECT p.*,m.name FROM purchases p JOIN medicines m ON m.id=p.medicine_id WHERE p.supplier=:name ORDER BY p.created_at DESC"),{"name":supplier["name"]}).mappings().all()
+    return jsonify(supplier=dict(supplier),purchases=[dict(x) for x in rows])
+
+# =========================================================
+# CUSTOMERS
+# =========================================================
+@app.get("/api/customers")
+def customers():
+    if not login_required(): return jsonify(error="Login required"),401
+    with engine.connect() as c:
+        rows=c.execute(text("""
+            SELECT c.*, COALESCE(SUM(s.total),0) total_purchases,
+                   COUNT(s.id) purchase_count,
+                   COALESCE(SUM(CASE WHEN s.payment_status!='Paid' THEN s.total-s.paid_amount ELSE 0 END),0) outstanding
+            FROM customers c LEFT JOIN sales s ON lower(s.customer)=lower(c.name)
+            GROUP BY c.id ORDER BY c.name
+        """)).mappings().all()
+    return jsonify([dict(x) for x in rows])
+
+@app.post("/api/customers")
+def add_customer():
+    if not login_required(): return jsonify(error="Login required"),401
+    d=request.json or {}; name=str(d.get("name") or "").strip()
+    if not name: return jsonify(error="Customer name is required"),400
+    try:
+        with engine.begin() as c:
+            cid=c.execute(text("INSERT INTO customers(name,mobile,address,created_at) VALUES(:n,:m,:a,:now) ON CONFLICT(name) DO UPDATE SET mobile=EXCLUDED.mobile,address=EXCLUDED.address RETURNING id"),{"n":name,"m":str(d.get("mobile") or ""),"a":str(d.get("address") or ""),"now":bd_now_naive()}).scalar_one()
+        return jsonify(ok=True,id=cid)
+    except Exception as e: return jsonify(error=str(e)),400
+
+@app.get("/api/customers/<int:cid>/history")
+def customer_history(cid):
+    if not login_required(): return jsonify(error="Login required"),401
+    with engine.connect() as c:
+        customer=c.execute(text("SELECT * FROM customers WHERE id=:id"),{"id":cid}).mappings().first()
+        if not customer: return jsonify(error="Customer not found"),404
+        rows=c.execute(text("SELECT invoice,customer,mobile,total,payment_status,paid_amount,created_at FROM sales WHERE lower(customer)=lower(:name) ORDER BY created_at DESC"),{"name":customer["name"]}).mappings().all()
+    return jsonify(customer=dict(customer),sales=[dict(x) for x in rows])
+
+# =========================================================
+# AUDIT LOGS / USER MANAGEMENT
+# =========================================================
+@app.get("/api/audit-logs")
+def audit_logs():
+    if not admin_required(): return jsonify(error="Admin access required"),403
+    with engine.connect() as c:
+        rows=c.execute(text("SELECT * FROM audit_logs ORDER BY id DESC LIMIT 500")).mappings().all()
+    return jsonify([dict(x) for x in rows])
+
+@app.patch("/api/users/<int:uid>/status")
+def set_user_status(uid):
+    if not admin_required(): return jsonify(error="Admin access required"),403
+    if current_user()["id"]==uid: return jsonify(error="You cannot disable your own account"),400
+    d=request.json or {}; active=bool(d.get("active"))
+    with engine.begin() as c: c.execute(text("UPDATE users SET active=:a WHERE id=:id"),{"a":active,"id":uid})
+    log_action("ENABLE_USER" if active else "DISABLE_USER",str(uid)); return jsonify(ok=True)
 
 # =========================================================
 # STOCK REPORT
@@ -2733,7 +2977,10 @@ def backup():
         "medicine_batches",
         "sales",
         "sale_items",
+        "deleted_invoices",
         "purchases",
+        "suppliers",
+        "customers",
         "stock_movements",
         "audit_logs"
     ]
@@ -2839,6 +3086,8 @@ def export_csv():
         "Generic",
         "Company",
         "Category",
+        "Manufacturer",
+        "Barcode",
         "Batch",
         "Expiry",
         "Purchase",
@@ -2854,6 +3103,8 @@ def export_csv():
             r["generic"],
             r["company"],
             r["category"],
+            r.get("manufacturer", ""),
+            r.get("barcode", ""),
             r["batch"],
             r["expiry"],
             r["purchase"],
