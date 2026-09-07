@@ -864,7 +864,43 @@ async function viewCustomer(id){const r=await fetch('/api/customers/'+id+'/histo
 function loadPharmacyProfile(){const p=JSON.parse(localStorage.getItem('pharmastock-profile')||'{}');['pharmacyName','pharmacyPhone','pharmacyAddress'].forEach(k=>{if($(k))$(k).value=p[k]||'';});}
 function savePharmacyProfile(){const file=$("pharmacyLogo")?.files?.[0];const old=JSON.parse(localStorage.getItem('pharmastock-profile')||'{}');const p={pharmacyName:$("pharmacyName").value,pharmacyPhone:$("pharmacyPhone").value,pharmacyAddress:$("pharmacyAddress").value,logo:old.logo||''};const done=()=>{localStorage.setItem('pharmastock-profile',JSON.stringify(p));$("profileMsg").innerHTML='<div class="msg">Pharmacy profile saved.</div>';};if(file){const rd=new FileReader();rd.onload=()=>{p.logo=rd.result;done();};rd.readAsDataURL(file);}else done();}
 
-async function loadAuditLogs(){if(!$("auditList")||currentUser?.role!=="admin")return;const r=await fetch("/api/audit-logs");if(!r.ok)return;const rows=await r.json();$("auditList").innerHTML=rows.length?`<div class="tablewrap"><table><tr><th>User</th><th>Action</th><th>Details</th><th>Date/Time</th></tr>${rows.map(x=>`<tr><td>${esc(x.username)}</td><td>${esc(x.action)}</td><td>${esc(x.details)}</td><td>${esc(String(x.created_at||"").replace("T"," "))}</td></tr>`).join("")}</table></div>`:"No activity yet.";}
+async function loadAuditLogs(){
+  if(!$("auditList")||currentUser?.role!=="admin")return;
+  const r=await fetch("/api/audit-logs");
+  if(!r.ok)return;
+  const rows=await r.json();
+  $("auditList").innerHTML=rows.length?`<div class="tablewrap audit-table-wrap"><table class="audit-table"><thead><tr><th class="audit-check"><input type="checkbox" id="auditSelectAll" onchange="toggleAllAuditLogs(this.checked)" aria-label="Select all"></th><th>User</th><th>Action</th><th>Details</th><th>Login Date</th><th>Login Time</th><th>Logout Date</th><th>Logout Time</th></tr></thead><tbody>${rows.map(x=>{
+    const raw=String(x.created_at||"").replace("T"," ");
+    const parts=raw.split(" ");
+    const date=parts[0]||"";
+    const time=(parts[1]||"").slice(0,8);
+    const login=x.action==="LOGIN";
+    const logout=x.action==="LOGOUT";
+    return `<tr><td class="audit-check"><input type="checkbox" class="audit-select" value="${Number(x.id)}" aria-label="Select activity ${Number(x.id)}"></td><td>${esc(x.username)}</td><td>${esc(x.action)}</td><td>${esc(x.details)}</td><td>${login?esc(date):"—"}</td><td>${login?esc(time):"—"}</td><td>${logout?esc(date):"—"}</td><td>${logout?esc(time):"—"}</td></tr>`;
+  }).join("")}</tbody></table></div>`:"No activity yet.";
+}
+
+function toggleAllAuditLogs(checked){
+  document.querySelectorAll(".audit-select").forEach(cb=>cb.checked=checked);
+}
+
+async function deleteSelectedAuditLogs(){
+  const ids=[...document.querySelectorAll(".audit-select:checked")].map(cb=>Number(cb.value)).filter(Boolean);
+  if(!ids.length){alert("Please select at least one activity record.");return;}
+  if(!confirm(`Delete ${ids.length} selected activity record(s)?`))return;
+  const r=await fetch("/api/audit-logs/delete-selected",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({ids})});
+  const d=await r.json().catch(()=>({}));
+  if(!r.ok){alert(d.error||"Could not delete selected activity records.");return;}
+  await loadAuditLogs();
+}
+
+async function deleteAllAuditLogs(){
+  if(!confirm("Delete ALL staff activity history? This cannot be undone."))return;
+  const r=await fetch("/api/audit-logs/delete-all",{method:"DELETE"});
+  const d=await r.json().catch(()=>({}));
+  if(!r.ok){alert(d.error||"Could not delete activity history.");return;}
+  await loadAuditLogs();
+}
 
 /* =========================
    PRINT INVOICE

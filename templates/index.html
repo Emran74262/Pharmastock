@@ -670,8 +670,17 @@
       <div id="userList"></div>
     </div>
   </div>
-  <div class="panel" style="margin-top:16px">
-    <h2>🛡️ Staff Activity History</h2>
+  <div class="panel staff-activity-panel" style="margin-top:16px">
+    <div class="activity-header">
+      <div>
+        <h2>🛡️ Staff Activity History</h2>
+        <p class="muted">Login and logout date/time are shown separately. Select records to delete.</p>
+      </div>
+      <div class="activity-actions">
+        <button type="button" onclick="deleteSelectedAuditLogs()">🗑️ Delete Selected</button>
+        <button type="button" class="danger" onclick="deleteAllAuditLogs()">🗑️ Delete All</button>
+      </div>
+    </div>
     <div id="auditList"></div>
   </div>
 

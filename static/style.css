@@ -216,9 +216,10 @@ main{
   margin-left:252px;
   width:calc(100% - 252px);
   min-height:100vh;
+  min-width:900px;
   padding:24px 30px 34px;
   position:relative;
-  overflow:hidden;
+  overflow:visible;
 }
 main:after{
   content:'My Pharma';
@@ -235,6 +236,9 @@ main:after{
   z-index:0;
 }
 main>*{position:relative;z-index:1}
+body{overflow-x:auto}
+#app{min-width:1180px}
+#app.sidebar-collapsed main{min-width:900px}
 
 header{
   display:flex;
@@ -348,7 +352,16 @@ button{border:1px solid var(--border);background:var(--surface);padding:10px 14p
 button:hover{background:var(--surface-2);border-color:#b9c8d8}
 
 /* TABLES */
-.tablewrap{overflow:auto}
+.tablewrap{overflow:auto;max-width:100%}
+.audit-table-wrap{width:100%;overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch}
+.audit-table{min-width:1050px}
+.audit-table th,.audit-table td{white-space:nowrap}
+.audit-check{width:42px;text-align:center!important}
+.audit-check input{width:16px;height:16px}
+.activity-header{display:flex;justify-content:space-between;align-items:flex-start;gap:18px;flex-wrap:wrap}
+.activity-header h2{margin-bottom:4px}
+.activity-actions{display:flex;gap:8px;flex-wrap:wrap}
+
 table{width:100%;border-collapse:separate;border-spacing:0;min-width:700px}
 th,td{padding:12px 10px;border-bottom:1px solid var(--border);text-align:left;font-size:13px}
 th{color:var(--muted);background:var(--surface-2);font-size:12px;text-transform:uppercase;letter-spacing:.35px}

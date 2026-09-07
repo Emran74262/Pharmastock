@@ -2705,8 +2705,30 @@ def customer_history(cid):
 def audit_logs():
     if not admin_required(): return jsonify(error="Admin access required"),403
     with engine.connect() as c:
-        rows=c.execute(text("SELECT * FROM audit_logs ORDER BY id DESC LIMIT 500")).mappings().all()
+        rows=c.execute(text("SELECT id,username,action,details,created_at FROM audit_logs ORDER BY id DESC LIMIT 500")).mappings().all()
     return jsonify([dict(x) for x in rows])
+
+@app.post("/api/audit-logs/delete-selected")
+def delete_selected_audit_logs():
+    if not admin_required(): return jsonify(error="Admin access required"),403
+    d=request.json or {}
+    ids=d.get("ids") or []
+    try:
+        ids=[int(x) for x in ids if int(x)>0]
+    except Exception:
+        return jsonify(error="Invalid activity record selection"),400
+    if not ids:
+        return jsonify(error="No activity records selected"),400
+    with engine.begin() as c:
+        c.execute(text("DELETE FROM audit_logs WHERE id = ANY(:ids)"), {"ids": ids})
+    return jsonify(ok=True,deleted=len(ids))
+
+@app.delete("/api/audit-logs/delete-all")
+def delete_all_audit_logs():
+    if not admin_required(): return jsonify(error="Admin access required"),403
+    with engine.begin() as c:
+        result=c.execute(text("DELETE FROM audit_logs"))
+    return jsonify(ok=True,deleted=result.rowcount)
 
 @app.patch("/api/users/<int:uid>")
 def update_user(uid):
