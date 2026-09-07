@@ -91,10 +91,10 @@
     🗑️ Deleted Invoices
   </button>
 
-  <button id="usersNav"
+  <button id="adminPanelNav"
           class="nav admin-only"
           onclick="show('users',this)">
-    👥 Users
+    🛡️ Admin Panel
   </button>
 
   <button id="backupNav"
@@ -623,7 +623,7 @@
 
     <div class="panel">
 
-      <h2>👥 Add User</h2>
+      <h2>👤 Create Staff User ID</h2>
 
       <div class="field">
         <label class="field-label" for="newUsername">Username</label>
@@ -632,7 +632,10 @@
 
       <div class="field">
         <label class="field-label" for="newPassword">Password</label>
-        <input id="newPassword" type="password">
+        <div class="password-field admin-password-field">
+          <input id="newPassword" type="password">
+          <button type="button" class="password-toggle" onclick="toggleAdminPassword('newPassword', this)" aria-label="Show password" title="Show password"><span>👁️</span></button>
+        </div>
       </div>
 
       <div class="field">
@@ -651,7 +654,7 @@
 
       <button class="primary"
               onclick="createUser()">
-        Create User
+        Create Staff User ID
       </button>
 
       <div id="userMsg"></div>
@@ -661,7 +664,8 @@
 
     <div class="panel">
 
-      <h2>Users</h2>
+      <h2>👥 User Management</h2>
+      <p class="muted">Only the Admin can create, edit, enable, disable, or delete user accounts.</p>
 
       <div id="userList"></div>
     </div>

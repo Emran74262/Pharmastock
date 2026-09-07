@@ -1399,13 +1399,26 @@ async function loadUsers() {
 
     const users = await r.json();
 
-    $("userList").innerHTML = users.length ? `<div class="tablewrap"><table><tr><th>Username</th><th>Role</th><th>Status</th><th>Created</th><th>Action</th></tr>${users.map(u => `<tr><td>${esc(u.username)}</td><td>${esc(u.role)}</td><td>${u.active ? "Active" : "Disabled"}</td><td>${esc(u.created_at || "")}</td><td>${u.username !== currentUser.username ? `<button onclick="toggleUser(${u.id},${u.active ? 'false':'true'})">${u.active ? 'Disable' : 'Enable'}</button>` : 'Current user'}</td></tr>`).join('')}</table></div>` : 'No users.';
+    $("userList").innerHTML = users.length ? `<div class="tablewrap"><table><tr><th>Username</th><th>Role</th><th>Status</th><th>Created</th><th>Action</th></tr>${users.map(u => `<tr><td><b>${esc(u.username)}</b></td><td>${esc(u.role)}</td><td>${u.active ? "Active" : "Disabled"}</td><td>${esc(u.created_at || "")}</td><td>${u.username !== currentUser.username ? `<button onclick="editUser(${u.id},'${esc(u.username).replace(/'/g, "\\'")}','${esc(u.role)}')">✏️ Edit</button> <button onclick="toggleUser(${u.id},${u.active ? 'false':'true'})">${u.active ? 'Disable' : 'Enable'}</button> <button class="danger" onclick="deleteUser(${u.id})">Delete</button>` : 'Current user'}</td></tr>`).join('')}</table></div>` : 'No users.';
 
   } catch (e) {
 
     console.error("Users error:", e);
   }
   loadAuditLogs();
+}
+
+function toggleAdminPassword(id, button) {
+  const input = $(id);
+  if (!input) return;
+  const visible = input.type === "text";
+  input.type = visible ? "password" : "text";
+  const eye = button?.querySelector("span");
+  if (eye) eye.textContent = visible ? "👁️" : "🙈";
+  if (button) {
+    button.setAttribute("aria-label", visible ? "Show password" : "Hide password");
+    button.setAttribute("title", visible ? "Show password" : "Hide password");
+  }
 }
 
 async function createUser() {
@@ -1452,6 +1465,24 @@ async function createUser() {
 
     alert("Server error.");
   }
+}
+
+async function editUser(id, username, role) {
+  if (currentUser?.role !== "admin") return;
+  const newUsername = prompt("User ID:", username);
+  if (newUsername === null) return;
+  const newRole = prompt("Role (staff/admin):", role);
+  if (newRole === null) return;
+  const newPassword = prompt("New password (leave blank to keep current password):", "");
+  if (newPassword === null) return;
+  const payload = { username: newUsername.trim(), role: newRole.trim().toLowerCase() };
+  if (newPassword) payload.password = newPassword;
+  try {
+    const r = await fetch("/api/users/" + id, { method: "PATCH", headers: {"Content-Type":"application/json"}, body: JSON.stringify(payload) });
+    const j = await r.json();
+    if (!r.ok) { alert(j.error || "Could not update user."); return; }
+    loadUsers();
+  } catch (e) { alert("Server error."); }
 }
 
 async function toggleUser(id, active){if(!confirm(active?'Enable this user?':'Disable this user?'))return;const r=await fetch('/api/users/'+id+'/status',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({active})});const j=await r.json();if(!r.ok){alert(j.error||'Could not update user.');return;}loadUsers();}

@@ -2708,6 +2708,31 @@ def audit_logs():
         rows=c.execute(text("SELECT * FROM audit_logs ORDER BY id DESC LIMIT 500")).mappings().all()
     return jsonify([dict(x) for x in rows])
 
+@app.patch("/api/users/<int:uid>")
+def update_user(uid):
+    if not admin_required(): return jsonify(error="Admin access required"),403
+    d=request.json or {}
+    username=str(d.get("username", "")).strip()
+    role=str(d.get("role", "staff")).strip().lower()
+    password=d.get("password")
+    if not username: return jsonify(error="Username is required"),400
+    if role not in ("admin","staff"): return jsonify(error="Role must be admin or staff"),400
+    if password is not None and password != "" and len(str(password)) < 8:
+        return jsonify(error="Password must be at least 8 characters"),400
+    if uid == current_user()["id"] and role != "admin":
+        return jsonify(error="You cannot remove admin access from your own account"),400
+    try:
+        with engine.begin() as c:
+            if password:
+                c.execute(text("UPDATE users SET username=:u, role=:r, password_hash=:p WHERE id=:id"), {"u":username,"r":role,"p":generate_password_hash(str(password)),"id":uid})
+            else:
+                c.execute(text("UPDATE users SET username=:u, role=:r WHERE id=:id"), {"u":username,"r":role,"id":uid})
+        log_action("UPDATE_USER", username)
+        return jsonify(ok=True)
+    except Exception as e:
+        return jsonify(error=str(e)),400
+
+
 @app.patch("/api/users/<int:uid>/status")
 def set_user_status(uid):
     if not admin_required(): return jsonify(error="Admin access required"),403
