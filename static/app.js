@@ -305,6 +305,7 @@ async function loadDash() {
     if ($("todayProfit")) $("todayProfit").textContent = money(d.today_profit);
     if ($("monthSales")) $("monthSales").textContent = money(d.month_sales);
     if ($("monthProfit")) $("monthProfit").textContent = money(d.month_profit);
+    if ($("totalInvoices")) $("totalInvoices").textContent = d.total_invoices || 0;
 
     if ($("nearExpiry")) {
       $("nearExpiry").textContent = d.near_expiry || 0;
@@ -840,15 +841,33 @@ async function startBarcodeScanner(){
    ANALYTICS / PROFIT & LOSS
 ========================= */
 async function loadAnalytics(){
-  const r=await fetch("/api/analytics"); if(!r.ok)return; const d=await r.json();
-  if($("todayProfit"))$("todayProfit").textContent=money(d.today_profit);
-  if($("monthSales"))$("monthSales").textContent=money(d.month_sales);
-  if($("monthProfit"))$("monthProfit").textContent=money(d.month_profit);
-  const charts=[$("salesChart"),$("salesChartAnalytics")].filter(Boolean),bests=[$("bestSellers"),$("bestSellersAnalytics")].filter(Boolean);
-  const max=Math.max(1,...(d.daily||[]).map(x=>Number(x.sales||0)));
-  const chartHtml=(d.daily||[]).map(x=>`<div class="bar-row"><span>${esc(String(x.day).slice(5))}</span><div class="bar"><i style="width:${Math.round(Number(x.sales||0)/max*100)}%"></i></div><b>${money(x.sales)}</b></div>`).join("")||'<p class="muted">No sales yet.</p>';
-  charts.forEach(chart=>chart.innerHTML=chartHtml);
-  const bestHtml=(d.best_sellers||[]).map((x,i)=>`<div class="rank-row"><b>#${i+1}</b><span>${esc(x.name)}</span><strong>${x.qty} units</strong><em>${money(x.profit)} profit</em></div>`).join("")||'<p class="muted">No sales yet.</p>';
+  const r=await fetch('/api/analytics'); if(!r.ok)return; const d=await r.json();
+  if($('todayProfit'))$('todayProfit').textContent=money(d.today_profit);
+  if($('monthSales'))$('monthSales').textContent=money(d.month_sales);
+  if($('monthProfit'))$('monthProfit').textContent=money(d.month_profit);
+
+  const charts=[$('salesChart'),$('salesChartAnalytics')].filter(Boolean);
+  const bests=[$('bestSellers'),$('bestSellersAnalytics')].filter(Boolean);
+  const daily=(d.daily||[]).slice(-7);
+  const vals=daily.map(x=>Number(x.sales||0));
+  const profits=daily.map(x=>Number(x.profit||0));
+  const max=Math.max(1,...vals,...profits);
+  const w=620,h=190,padL=38,padR=10,padT=14,padB=28;
+  const sx=i=>daily.length<=1?(w-padL-padR)/2+padL:(padL+i*(w-padL-padR)/(daily.length-1));
+  const sy=v=>padT+(h-padT-padB)*(1-v/max);
+  const salesPts=vals.map((v,i)=>`${sx(i).toFixed(1)},${sy(v).toFixed(1)}`).join(' ');
+  const profitPts=profits.map((v,i)=>`${sx(i).toFixed(1)},${sy(v).toFixed(1)}`).join(' ');
+  const grid=[0,.25,.5,.75,1].map(fr=>{
+    const y=padT+(h-padT-padB)*fr;
+    const label=money(max*(1-fr)).replace('৳','');
+    return `<line x1="${padL}" y1="${y}" x2="${w-padR}" y2="${y}" stroke="#e7eef1" stroke-width="1"/><text x="3" y="${y+3}" font-size="8" fill="#8da0aa">${esc(label)}</text>`;
+  }).join('');
+  const labels=daily.map((x,i)=>`<text x="${sx(i)}" y="${h-8}" text-anchor="middle" font-size="8" fill="#8095a1">${esc(String(x.day||'').slice(5).replace('-','/'))}</text>`).join('');
+  const dots=vals.map((v,i)=>`<circle cx="${sx(i)}" cy="${sy(v)}" r="3" fill="#10a56f"/>`).join('')+profits.map((v,i)=>`<circle cx="${sx(i)}" cy="${sy(v)}" r="3" fill="#1687ee"/>`).join('');
+  const chartSvg=`<svg viewBox="0 0 ${w} ${h}" width="100%" height="190" role="img" aria-label="Sales and profit chart">${grid}<polyline points="${salesPts}" fill="none" stroke="#10a56f" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/><polyline points="${profitPts}" fill="none" stroke="#1687ee" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>${dots}${labels}</svg>`;
+  charts.forEach(el=>el.innerHTML=chartSvg);
+
+  const bestHtml=(d.best_sellers||[]).map((x,i)=>`<div class="rank-row"><b>${i+1}</b><span>${esc(x.name)}</span><strong>${x.qty}</strong><em>↑ ${Math.max(1,Math.round(Number(x.profit||0)))}%</em></div>`).join('')||'<p class="muted">No sales yet.</p>';
   bests.forEach(best=>best.innerHTML=bestHtml);
 }
 async function loadProfitLoss(){

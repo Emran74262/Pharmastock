@@ -1,18 +1,17 @@
-# PharmaStock — Full App Reference Style Update
+# PharmaStock — Saved Reference Style Update
 
-Updated the entire UI to closely match the supplied PharmaStock reference design.
+Applied the saved PharmaStock reference-board visual language across the entire application.
 
 ## Visual changes
-- Deep pharmaceutical-green sidebar with compact navigation
-- Reference-style PharmaStock branding and logo placement
-- Compact rounded top header with global search
-- Bangladesh date/time, Light/Dark controls, Export CSV, user profile and Logout
-- Four-column dashboard KPI cards on desktop
-- Dashboard chart, best-selling medicines and recent notifications arranged in a reference-like layout
-- Compact Quick Actions and Stock Alerts panels
-- Consistent rounded cards, borders, shadows, inputs, buttons and tables across all pages
-- Compact professional table density for Medicines, Sales, Stock In, Stock History, Analytics, Profit & Loss, Reports, Suppliers, Customers, Deleted Invoices and Admin Panel
-- Reference-like modal and login styling
-- Dark mode updated to keep the same design language
-- Existing horizontal scrolling and responsive behavior preserved
-- Existing functionality/backend/database structure preserved
+- Full-width professional top header with PharmaStock logo, global search, notifications, Bangladesh date/time, Light/Dark controls, Export CSV, user profile, and Logout.
+- Dark teal/green sidebar positioned below the header with compact rounded navigation items and green active state.
+- Dashboard reordered to match the reference hierarchy: four primary KPI cards, four secondary KPI cards, three-column analytics/best-seller/notification area, quick actions, and stock alerts.
+- Added dashboard Total Invoices KPI backed by the existing sales data.
+- Replaced the dashboard sales/profit horizontal bars with a compact two-line SVG chart using real analytics data.
+- Standardized rounded white cards, subtle borders, compact tables, labels-above-input forms, and modern buttons across all pages.
+- Updated Sales & Billing, Stock In, Analytics, Profit & Loss, Reports, Suppliers, Customers, Deleted Invoices, Admin Panel, Staff Activity History, Settings, and Login to share the same visual system.
+- Preserved Light/Dark mode, sidebar collapse, admin-only controls, activity deletion, barcode scanner, batch/expiry logic, invoice logic, and existing API/database behavior.
+
+## Validation
+- `python -m py_compile app.py`
+- `node --check static/app.js`

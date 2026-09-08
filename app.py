@@ -1045,6 +1045,11 @@ def dashboard():
         month_sales = c.execute(text("SELECT COALESCE(SUM(total),0) FROM sales WHERE created_at::date>=:d"), {"d":month_start}).scalar()
         month_profit = c.execute(text("""SELECT COALESCE(SUM(si.quantity*(si.price-si.purchase_price)),0) FROM sale_items si JOIN sales s ON s.id=si.sale_id WHERE s.created_at::date>=:d"""), {"d":month_start}).scalar()
 
+        total_invoices = c.execute(
+            text("""SELECT COUNT(*) FROM sales WHERE created_at::date=:today"""),
+            {"today": today}
+        ).scalar()
+
     return jsonify(
         total_products=int(
             total_products or 0
@@ -1067,7 +1072,8 @@ def dashboard():
         today=float(today_sales or 0),
         today_profit=float(today_profit or 0),
         month_sales=float(month_sales or 0),
-        month_profit=float(month_profit or 0)
+        month_profit=float(month_profit or 0),
+        total_invoices=int(total_invoices or 0)
     )
 
 

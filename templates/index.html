@@ -6,7 +6,7 @@
 
 <title>PharmaStock — Pharmacy Management</title>
 
-<link rel="stylesheet" href="/static/style.css?v=20260908-reference">
+<link rel="stylesheet" href="/static/style.css?v=20260908-reference-final">
 </head>
 
 <body>
@@ -124,6 +124,11 @@
 <main>
 
 <header>
+  <div class="header-brand">
+    <img src="/static/pharmastock-logo.svg" alt="PharmaStock logo">
+    <div><strong>PharmaStock</strong><small>Pharmacy Management System</small></div>
+  </div>
+
   <div class="header-title-block">
     <h1 id="title">Dashboard</h1>
     <p>Pharmacy management system</p>
@@ -136,6 +141,8 @@
   </div>
 
   <div class="header-actions">
+    <button type="button" class="notification-bell" title="Notifications" onclick="show('dashboard')">🔔<span class="notification-dot">!</span></button>
+
     <span id="bdClock" class="bd-clock">
       <span id="bdClockDate">Date : --/--/----</span>
       <span id="bdClockTime">Time : --:--:-- --</span>
@@ -165,91 +172,58 @@
 
 <section id="dashboard" class="page">
 
-  <div class="cards">
-
-    <div class="card">
-      <span>Medicines</span>
-      <b id="products">0</b>
+  <div class="dashboard-heading">
+    <div class="dashboard-heading-icon">⌂</div>
+    <div>
+      <h1>Dashboard</h1>
+      <p>Welcome back, admin! Here’s what’s happening at your pharmacy today.</p>
     </div>
-
-    <div class="card">
-      <span>Total Units</span>
-      <b id="stock">0</b>
-    </div>
-
-    <div class="card">
-      <span>Stock Value</span>
-      <b id="value">৳0</b>
-    </div>
-
-    <div class="card warn">
-      <span>Low Stock</span>
-      <b id="low">0</b>
-    </div>
-
-    <div class="card danger">
-      <span>Expired</span>
-      <b id="expired">0</b>
-    </div>
-
-    <div class="card warn">
-      <span>Near Expiry</span>
-      <b id="nearExpiry">0</b>
-    </div>
-
-    <div class="card">
-      <span>Today's Sales</span>
-      <b id="today">৳0</b>
-    </div>
-
-    <div class="card profit-card">
-      <span>Today's Profit</span>
-      <b id="todayProfit">৳0</b>
-    </div>
-
-    <div class="card">
-      <span>Monthly Sales</span>
-      <b id="monthSales">৳0</b>
-    </div>
-
-    <div class="card profit-card">
-      <span>Monthly Profit</span>
-      <b id="monthProfit">৳0</b>
-    </div>
-
   </div>
 
+  <div class="cards dashboard-kpis">
+    <div class="card sales-kpi"><span>Today's Sales</span><b id="today">৳0</b><em>↑ Today</em></div>
+    <div class="card profit-card profit-kpi"><span>Today's Profit</span><b id="todayProfit">৳0</b><em>↑ Today</em></div>
+    <div class="card monthly-kpi"><span>This Month's Sales</span><b id="monthSales">৳0</b><em>↑ This month</em></div>
+    <div class="card value-kpi"><span>Stock Value</span><b id="value">৳0</b><em>Current stock</em></div>
+
+    <div class="card danger"><span>Low Stock</span><b id="low">0</b><em>Medicines</em></div>
+    <div class="card warn"><span>Expiring Soon</span><b id="nearExpiry">0</b><em>Medicines</em></div>
+    <div class="card blue-kpi"><span>Total Medicines</span><b id="products">0</b><em>Items</em></div>
+    <div class="card purple-kpi"><span>Total Invoices</span><b id="totalInvoices">0</b><em>Today</em></div>
+  </div>
 
   <div class="dashboard-content-grid">
-    <div class="dashboard-main-column">
-      <div class="dashboard-chart-grid">
-        <div class="panel dashboard-chart-panel"><h2>📈 Sales &amp; Profit Overview</h2><div id="salesChart" class="bar-chart"></div></div>
-        <div class="panel"><h2>🏆 Best Selling Medicines <span class="panel-link">View All</span></h2><div id="bestSellers"></div></div>
-      </div>
-
-      <div class="panel">
-        <h2>Quick Actions</h2>
-        <div class="actions">
-          <button onclick="openMed()">＋ Add Medicine</button>
-          <button onclick="show('sales')">🧾 New Sale</button>
-          <button onclick="show('purchase')">📦 Stock In</button>
-          <button onclick="show('analytics')">📊 Analytics</button>
-          <button onclick="show('profitLoss')">💰 Profit &amp; Loss</button>
-        </div>
-      </div>
-
-      <div class="panel">
-        <h2>⚠️ Stock Alerts</h2>
-        <div id="dashboardAlerts">Loading...</div>
-      </div>
+    <div class="panel dashboard-chart-panel">
+      <div class="panel-head"><div><h2>Sales &amp; Profit Overview</h2><p class="panel-subtitle">Performance for the last 7 days</p></div><select class="mini-select"><option>Last 7 Days</option></select></div>
+      <div class="chart-legend"><span class="legend-sales">● Sales</span><span class="legend-profit">● Profit</span></div>
+      <div id="salesChart" class="bar-chart"></div>
     </div>
 
-    <div class="dashboard-side-column">
-      <div class="panel dashboard-notifications-panel">
-        <h2>🔔 Recent Notifications <span class="panel-link">View All</span></h2>
-        <div id="dashboardNotifications">Loading...</div>
-      </div>
+    <div class="panel best-sellers-panel">
+      <div class="panel-head"><h2>Best Selling Medicines</h2><span class="panel-link">View All</span></div>
+      <div id="bestSellers"></div>
     </div>
+
+    <div class="panel dashboard-notifications-panel">
+      <div class="panel-head"><h2>Recent Notifications</h2><span class="panel-link">View All</span></div>
+      <div id="dashboardNotifications">Loading...</div>
+    </div>
+  </div>
+
+  <div class="panel quick-actions-panel">
+    <h2>Quick Actions</h2>
+    <div class="actions">
+      <button onclick="openMed()">＋ Add Medicine</button>
+      <button onclick="show('sales')">🧾 New Sale</button>
+      <button onclick="show('purchase')">📦 Stock In</button>
+      <button onclick="show('analytics')">📊 Analytics</button>
+      <button onclick="show('profitLoss')">💰 Profit &amp; Loss</button>
+    </div>
+  </div>
+
+  <div class="panel stock-alert-panel">
+    <div class="panel-head"><h2>⚠️ Stock Alerts</h2><span class="panel-subtitle">Low, out-of-stock and expiry warnings</span></div>
+    <div id="dashboardAlerts">Loading...</div>
   </div>
 </section>
 
@@ -850,7 +824,7 @@
 </div>
 
 
-<script src="/static/app.js?v=20260908-reference"></script>
+<script src="/static/app.js?v=20260908-reference-final"></script>
 
 </body>
 </html>
