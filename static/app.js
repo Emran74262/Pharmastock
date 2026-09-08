@@ -87,6 +87,13 @@ function showApp() {
       currentUser?.role || "";
   }
 
+  if ($("headerUserName")) {
+    $("headerUserName").textContent = currentUser?.username || "User";
+  }
+  if ($("headerUserRole")) {
+    $("headerUserRole").textContent = currentUser?.role === "admin" ? "Administrator" : "Staff";
+  }
+
   document.querySelectorAll(".admin-only").forEach(el => {
     el.style.display =
       currentUser?.role === "admin" ? "" : "none";

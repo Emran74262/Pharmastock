@@ -6,7 +6,7 @@
 
 <title>PharmaStock — Pharmacy Management</title>
 
-<link rel="stylesheet" href="/static/style.css">
+<link rel="stylesheet" href="/static/style.css?v=20260908-reference">
 </head>
 
 <body>
@@ -124,18 +124,18 @@
 <main>
 
 <header>
-
-  <div>
+  <div class="header-title-block">
     <h1 id="title">Dashboard</h1>
     <p>Pharmacy management system</p>
   </div>
 
+  <div class="global-search">
+    <span aria-hidden="true">⌕</span>
+    <label class="sr-only" for="globalSearch">Global Search</label>
+    <input id="globalSearch" aria-label="Global Search" onkeydown="if(event.key==='Enter'){show('inventory');$('search').value=this.value;loadMeds();}">
+  </div>
+
   <div class="header-actions">
-
-    <button type="button" class="header-logout" onclick="logout()">
-      🚪 Logout
-    </button>
-
     <span id="bdClock" class="bd-clock">
       <span id="bdClockDate">Date : --/--/----</span>
       <span id="bdClockTime">Time : --:--:-- --</span>
@@ -146,12 +146,18 @@
       <button id="darkThemeBtn" type="button" onclick="setTheme('dark')">🌙 Dark</button>
     </div>
 
-    <a class="export" href="/api/export">
-      Export CSV
-    </a>
+    <a class="export" href="/api/export">Export CSV</a>
 
+    <div class="header-user">
+      <div class="header-user-avatar">●</div>
+      <div class="header-user-copy">
+        <b id="headerUserName">User</b>
+        <small id="headerUserRole">Staff</small>
+      </div>
+    </div>
+
+    <button type="button" class="header-logout" onclick="logout()">🚪 Logout</button>
   </div>
-
 </header>
 
 
@@ -214,49 +220,37 @@
   </div>
 
 
-  <div class="panel">
+  <div class="dashboard-content-grid">
+    <div class="dashboard-main-column">
+      <div class="dashboard-chart-grid">
+        <div class="panel dashboard-chart-panel"><h2>📈 Sales &amp; Profit Overview</h2><div id="salesChart" class="bar-chart"></div></div>
+        <div class="panel"><h2>🏆 Best Selling Medicines <span class="panel-link">View All</span></h2><div id="bestSellers"></div></div>
+      </div>
 
-    <h2>Quick Actions</h2>
+      <div class="panel">
+        <h2>Quick Actions</h2>
+        <div class="actions">
+          <button onclick="openMed()">＋ Add Medicine</button>
+          <button onclick="show('sales')">🧾 New Sale</button>
+          <button onclick="show('purchase')">📦 Stock In</button>
+          <button onclick="show('analytics')">📊 Analytics</button>
+          <button onclick="show('profitLoss')">💰 Profit &amp; Loss</button>
+        </div>
+      </div>
 
-    <div class="actions">
-
-      <button onclick="openMed()">
-        ＋ Add Medicine
-      </button>
-
-      <button onclick="show('sales')">
-        🧾 New Sale
-      </button>
-
-      <button onclick="show('purchase')">
-        📦 Stock In
-      </button>
-
-      <button onclick="show('analytics')">📊 Analytics</button>
-      <button onclick="show('profitLoss')">💰 Profit & Loss</button>
-
+      <div class="panel">
+        <h2>⚠️ Stock Alerts</h2>
+        <div id="dashboardAlerts">Loading...</div>
+      </div>
     </div>
 
-  </div>
-
-
-  <div class="panel">
-
-    <h2>⚠️ Stock Alerts</h2>
-
-    <div id="dashboardAlerts">
-      Loading...
+    <div class="dashboard-side-column">
+      <div class="panel dashboard-notifications-panel">
+        <h2>🔔 Recent Notifications <span class="panel-link">View All</span></h2>
+        <div id="dashboardNotifications">Loading...</div>
+      </div>
     </div>
-
   </div>
-
-  <div class="analytics-grid">
-    <div class="panel"><h2>📈 Sales — Last 30 Days</h2><div id="salesChart" class="bar-chart"></div></div>
-    <div class="panel"><h2>🏆 Best Sellers</h2><div id="bestSellers"></div></div>
-  </div>
-
-  <div class="panel"><h2>🔔 Recent Notifications</h2><div id="dashboardNotifications">Loading...</div></div>
-
 </section>
 
 
@@ -856,7 +850,7 @@
 </div>
 
 
-<script src="/static/app.js?v=20260908-logo"></script>
+<script src="/static/app.js?v=20260908-reference"></script>
 
 </body>
 </html>
