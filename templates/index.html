@@ -124,14 +124,10 @@
 <main>
 
 <header>
+  <span id="title" class="sr-only">Dashboard</span>
   <div class="header-brand">
     <img src="/static/pharmastock-logo.svg" alt="PharmaStock logo">
     <div><strong>PharmaStock</strong><small>Pharmacy Management System</small></div>
-  </div>
-
-  <div class="header-title-block">
-    <h1 id="title">Dashboard</h1>
-    <p>Pharmacy management system</p>
   </div>
 
   <div class="global-search">
@@ -142,11 +138,6 @@
 
   <div class="header-actions">
     <button type="button" class="notification-bell" title="Notifications" onclick="show('dashboard')">🔔<span class="notification-dot">!</span></button>
-
-    <span id="bdClock" class="bd-clock">
-      <span id="bdClockDate">Date : --/--/----</span>
-      <span id="bdClockTime">Time : --:--:-- --</span>
-    </span>
 
     <div class="theme-toggle" aria-label="Theme selector">
       <button id="lightThemeBtn" type="button" onclick="setTheme('light')">☀️ Light</button>
@@ -177,6 +168,15 @@
     <div>
       <h1>Dashboard</h1>
       <p>Welcome back, admin! Here’s what’s happening at your pharmacy today.</p>
+    </div>
+  </div>
+
+  <div class="dashboard-date-card">
+    <div class="dashboard-date-icon">▣</div>
+    <div>
+      <b id="bdClockDate">Date : --/--/----</b>
+      <span id="bdClockTime">Time : --:--:-- --</span>
+      <small>Good afternoon!</small>
     </div>
   </div>
 

@@ -1567,3 +1567,185 @@ body.dark .login-box h1{color:#e8f5f1!important}
   #dashboard .dashboard-notifications-panel{grid-column:1/-1}
   #dashboard .actions{grid-template-columns:repeat(3,minmax(0,1fr))!important}
 }
+
+/* =========================================================
+   PHARMASTOCK 2026 — REFERENCE-ACCURATE APPLICATION SHELL
+   Apply this visual system across every page while preserving
+   all existing functionality.
+   ========================================================= */
+:root{
+  --v26-green:#07986a;
+  --v26-green-dark:#005b4f;
+  --v26-green-deep:#00463f;
+  --v26-bg:#f5f9fa;
+  --v26-card:#ffffff;
+  --v26-line:#e1eaee;
+  --v26-text:#173344;
+  --v26-muted:#78909e;
+  --v26-blue:#168de0;
+  --v26-purple:#8c5bdb;
+  --v26-orange:#f3a027;
+  --v26-red:#ef4650;
+}
+html,body{background:var(--v26-bg)!important;color:var(--v26-text)!important}
+body{font-family:Inter,Segoe UI,Arial,sans-serif!important}
+#app{min-width:1220px!important;background:linear-gradient(180deg,#f7fafb 0%,#f1f6f8 100%)!important}
+
+/* Sidebar exactly as the reference: dark teal, compact, clean */
+.sidebar{
+  width:238px!important;
+  padding:12px 9px 10px!important;
+  background:linear-gradient(180deg,#006557 0%,#00554b 48%,#003f39 100%)!important;
+  box-shadow:8px 0 24px rgba(0,68,59,.10)!important;
+  display:flex!important;flex-direction:column!important;
+}
+.brand{min-height:53px!important;padding:5px 11px 8px!important;gap:9px!important}
+.brand img{width:39px!important;height:39px!important}
+.brand span{font-size:20px!important;font-weight:800!important;color:#fff!important;letter-spacing:-.8px!important}
+.brand:after{font-size:8px!important;margin-left:48px!important;color:#d6fff2!important;opacity:.72!important}
+.sidebar-user{order:5!important;margin:6px 7px 6px!important;min-height:49px!important;padding:9px 11px!important;background:rgba(255,255,255,.06)!important;border:0!important;border-top:1px solid rgba(255,255,255,.10)!important;border-radius:0!important}
+.sidebar-hide-btn{order:2!important;width:calc(100% - 14px)!important;margin:0 7px 8px!important;min-height:34px!important;padding:7px 10px!important;text-align:left!important;background:rgba(255,255,255,.055)!important;border:1px solid rgba(255,255,255,.09)!important;color:#eafff8!important;border-radius:9px!important}
+.sidebar-nav-scroll{order:3!important;min-height:0!important;overflow-y:auto!important;overflow-x:hidden!important;padding:0 2px 8px!important}
+.nav{width:100%!important;margin:2px 0!important;min-height:37px!important;padding:8px 12px!important;border:0!important;border-radius:9px!important;color:#e7faf4!important;background:transparent!important;font-size:11px!important;font-weight:600!important;box-shadow:none!important;text-align:left!important}
+.nav:hover{background:rgba(255,255,255,.08)!important;transform:none!important}
+.nav.active{background:#0aa06f!important;color:#fff!important;box-shadow:0 6px 16px rgba(0,0,0,.12)!important}
+.sidefoot{order:6!important;position:static!important;left:auto!important;right:auto!important;bottom:auto!important;text-align:center!important;padding:3px 0 2px!important}
+.sidefoot small{font-size:8px!important;color:rgba(255,255,255,.55)!important}
+
+/* Main/header */
+main{margin-left:238px!important;width:calc(100% - 238px)!important;padding:12px 18px 32px!important}
+header{
+  min-height:61px!important;margin-bottom:14px!important;padding:9px 13px!important;
+  border-radius:15px!important;border:1px solid #e1eaee!important;background:#fff!important;
+  box-shadow:0 4px 18px rgba(26,67,82,.055)!important;
+  display:flex!important;align-items:center!important;gap:12px!important;
+}
+.header-brand{width:215px!important;min-width:215px!important;display:flex!important;align-items:center!important;gap:8px!important}
+.header-brand img{width:39px!important;height:39px!important}
+.header-brand strong{font-size:19px!important;color:#0a6f57!important;letter-spacing:-.6px!important}
+.header-brand small{font-size:8px!important;color:#8195a1!important;display:block!important;margin-top:2px!important}
+.header-title-block{display:none!important}
+.global-search{order:2!important;flex:1 1 430px!important;max-width:430px!important;margin:0 auto!important;height:36px!important;border:1px solid #dfe8ec!important;border-radius:9px!important;background:#fbfdfe!important;display:flex!important;align-items:center!important;padding:0 11px!important}
+.global-search span{font-size:17px!important;color:#8297a3!important}
+.global-search input{height:32px!important;min-height:32px!important;border:0!important;background:transparent!important;box-shadow:none!important;padding:0 7px!important;font-size:10px!important}
+.header-actions{order:3!important;gap:7px!important;flex-wrap:nowrap!important;white-space:nowrap!important}
+.notification-bell{width:31px!important;height:31px!important;min-height:31px!important;border:0!important;background:transparent!important;font-size:15px!important;padding:0!important}
+.notification-dot{width:9px!important;height:9px!important;font-size:7px!important;top:2px!important;right:1px!important}
+#bdClock{display:none!important}
+.theme-toggle{display:flex!important;gap:0!important;border:1px solid #e1e9ec!important;border-radius:18px!important;overflow:hidden!important;background:#f7fafb!important;padding:2px!important}
+.theme-toggle button{height:29px!important;min-height:29px!important;border:0!important;border-radius:15px!important;background:transparent!important;padding:0 9px!important;font-size:9px!important;color:#48616f!important}
+.theme-toggle button:hover{background:#e8f7f1!important}
+.export{min-height:32px!important;height:32px!important;padding:0 10px!important;border:1px solid #d6e4e7!important;border-radius:8px!important;background:#fff!important;color:#087c5b!important;font-size:9px!important}
+.header-user{padding:2px 5px!important;gap:6px!important}
+.header-user-avatar{width:30px!important;height:30px!important;border-radius:50%!important;background:#eef5f6!important;color:#1c6870!important}
+.header-user-copy b{font-size:9px!important;color:#173344!important}
+.header-user-copy small{font-size:7px!important;color:#7e919d!important}
+.header-logout{height:32px!important;min-height:32px!important;padding:0 11px!important;border:1px solid #07986a!important;border-radius:8px!important;background:#fff!important;color:#087d5c!important;font-size:9px!important}
+
+/* Dashboard heading + date card */
+#dashboard{position:relative!important}
+.dashboard-heading{margin:2px 0 12px 3px!important;padding-right:205px!important;min-height:42px!important}
+.dashboard-heading-icon{width:38px!important;height:38px!important;border-radius:9px!important;background:#e1f6ed!important;color:#07986a!important;font-size:23px!important}
+.dashboard-heading h1{font-size:21px!important;color:#173344!important}
+.dashboard-heading p{font-size:9px!important;color:#7f96a4!important}
+.dashboard-date-card{
+  position:absolute!important;right:2px;top:0;width:188px;min-height:49px;
+  display:flex;align-items:center;gap:9px;padding:7px 10px;border:1px solid #e2ebee;border-radius:10px;background:#fff;
+  box-shadow:0 3px 12px rgba(25,65,78,.045);
+}
+.dashboard-date-icon{width:29px;height:29px;border-radius:7px;background:#eef7f6;color:#2d6671;display:grid;place-items:center;font-size:15px}
+.dashboard-date-card b{display:block;font-size:9px;color:#3e5563;font-weight:700}
+.dashboard-date-card span{display:block;font-size:8px;color:#6d8290;margin-top:2px}
+.dashboard-date-card small{display:block;font-size:7px;color:#8498a3;margin-top:2px}
+
+/* KPI grid: reference uses 4 x 2 */
+#dashboard .dashboard-kpis{grid-template-columns:repeat(4,minmax(0,1fr))!important;gap:11px!important;margin-bottom:12px!important}
+#dashboard .dashboard-kpis .card{min-height:87px!important;padding:14px 11px 10px 70px!important;border-radius:11px!important;border:1px solid #e2ebee!important;background:#fff!important;box-shadow:0 4px 14px rgba(24,65,79,.045)!important}
+#dashboard .dashboard-kpis .card:before{left:12px!important;top:15px!important;width:42px!important;height:42px!important;border-radius:10px!important}
+#dashboard .dashboard-kpis .card span{font-size:8.5px!important;text-transform:none!important;letter-spacing:0!important;color:#758b98!important}
+#dashboard .dashboard-kpis .card b{font-size:17px!important;color:#193747!important;margin-top:5px!important}
+#dashboard .dashboard-kpis .card em{font-size:8px!important;margin-top:4px!important;color:#0a9b6b!important}
+
+/* Dashboard lower panels */
+#dashboard .dashboard-content-grid{grid-template-columns:minmax(0,1.55fr) minmax(240px,.82fr) minmax(220px,.78fr)!important;gap:11px!important}
+#dashboard .dashboard-chart-panel,#dashboard .best-sellers-panel,#dashboard .dashboard-notifications-panel{min-height:244px!important;padding:12px!important;border-radius:11px!important;border:1px solid #e2ebee!important;background:#fff!important;box-shadow:0 4px 14px rgba(24,65,79,.045)!important}
+.panel-head h2{font-size:11.5px!important;color:#173344!important}
+.panel-subtitle{font-size:7.5px!important}
+.chart-legend{font-size:7.5px!important;margin:6px 0 0!important}
+#dashboard .dashboard-chart-panel #salesChart{min-height:180px!important}
+#dashboard .quick-actions-panel{margin-top:11px!important;padding:11px 13px!important;border-radius:11px!important}
+#dashboard .quick-actions-panel h2{font-size:11px!important;margin-bottom:8px!important}
+#dashboard .actions{grid-template-columns:repeat(5,minmax(0,1fr))!important;gap:8px!important}
+#dashboard .actions button{min-height:39px!important;border-radius:8px!important;font-size:8.5px!important;box-shadow:none!important}
+
+/* Universal reference card language */
+.page{color:var(--v26-text)!important}
+.page>h1,.page>h2{font-size:19px!important;letter-spacing:-.35px!important}
+.panel{border:1px solid #e2ebee!important;border-radius:11px!important;background:#fff!important;box-shadow:0 4px 14px rgba(24,65,79,.045)!important;padding:13px!important}
+.panel h2{font-size:12px!important;color:#173344!important}
+.toolbar{gap:8px!important;margin-bottom:10px!important}
+input,select{height:35px!important;min-height:35px!important;border-radius:8px!important;border:1px solid #dce7eb!important;background:#fff!important;font-size:9px!important;box-shadow:none!important}
+input:focus,select:focus{border-color:#7bcbb1!important;box-shadow:0 0 0 3px rgba(8,155,108,.08)!important;transform:none!important}
+.field-label{font-size:8.5px!important;color:#6d8491!important;margin-bottom:4px!important}
+button,.button{min-height:32px!important;border-radius:8px!important;font-size:9px!important}
+.primary{background:linear-gradient(135deg,#079d6d,#067e5d)!important;box-shadow:none!important}
+.tablewrap,.audit-table-wrap{border:1px solid #e1eaee!important;border-radius:9px!important;background:#fff!important;box-shadow:none!important}
+table{min-width:760px!important}
+th{padding:8px 9px!important;background:#f7fafb!important;color:#718894!important;font-size:7.5px!important;text-transform:none!important;letter-spacing:.15px!important}
+td{padding:8px 9px!important;color:#35515f!important;font-size:8.5px!important}
+tbody tr:hover{background:#f4faf8!important}
+
+/* Sales POS */
+#sales .grid2{grid-template-columns:minmax(0,1.5fr) minmax(255px,.75fr)!important;gap:10px!important}
+#sales .panel{min-height:0!important}
+#sales .saleadd{grid-template-columns:minmax(0,1.5fr) 60px 90px 60px 54px!important;gap:6px!important}
+#sales .total{border-radius:8px!important;padding:8px!important;margin:8px 0!important;background:#f9fcfb!important}
+
+/* Stock in / history */
+#purchase .row{grid-template-columns:repeat(5,minmax(0,1fr))!important;gap:8px!important}
+#purchase .formpanel{border-radius:11px!important}
+#movements .panel{overflow:hidden!important}
+
+/* Analytics / finance */
+.analytics-grid{gap:10px!important}
+.chart-card{border:1px solid #e2ebee!important;border-radius:11px!important;background:#fff!important;padding:12px!important;box-shadow:0 4px 14px rgba(24,65,79,.045)!important}
+.chart-card h3{font-size:10.5px!important;color:#173344!important}
+#profitLoss .cards.compact{grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:9px!important}
+
+/* Management pages */
+#suppliers .grid2,#customers .grid2,#users .grid2,#settings .grid2,#reports .grid2{grid-template-columns:minmax(280px,.72fr) minmax(0,1.28fr)!important;gap:10px!important}
+
+/* Activity history */
+.staff-activity-panel{border-radius:11px!important}
+.activity-header{padding-bottom:3px!important}
+.activity-actions{gap:6px!important}
+.activity-actions button{font-size:8px!important}
+.audit-table{min-width:1000px!important}
+.audit-table th,.audit-table td{padding:8px 9px!important}
+
+/* Login reference style */
+.login-page{background:linear-gradient(135deg,rgba(232,248,242,.96),rgba(248,251,251,.98))!important}
+.login-box{width:min(370px,92vw)!important;border-radius:16px!important;padding:25px 28px 22px!important;border:1px solid #dfeaec!important;box-shadow:0 22px 60px rgba(0,67,57,.13)!important}
+.login-brand-mark{width:70px!important;height:70px!important;margin-bottom:8px!important}
+.login-brand-mark img{width:70px!important;height:70px!important}
+.login-box h1{font-size:24px!important;color:#143647!important}
+.login-box>p{font-size:9px!important}
+.login-box input{height:38px!important;min-height:38px!important}
+.login-btn{height:39px!important}
+
+/* Dark mode retains the same reference geometry */
+body.dark #app{background:#071a17!important}
+body.dark header,body.dark .panel,body.dark #dashboard .dashboard-kpis .card,body.dark .dashboard-date-card,body.dark .tablewrap,body.dark .audit-table-wrap,body.dark .chart-card{background:#0d2923!important;border-color:#20473d!important}
+body.dark .global-search,body.dark input,body.dark select{background:#0b211b!important;border-color:#21483e!important;color:#e7f6f0!important}
+body.dark .header-brand strong,body.dark .dashboard-heading h1,body.dark .dashboard-date-card b,body.dark .panel-head h2,body.dark .panel h2,body.dark #dashboard .dashboard-kpis .card b{color:#e8f5f1!important}
+body.dark .dashboard-heading p,body.dark .dashboard-date-card span,body.dark .dashboard-date-card small,body.dark .field-label,body.dark .header-user-copy small{color:#9bb7ad!important}
+body.dark th{background:#102f28!important;color:#9bb7ad!important}
+body.dark td{color:#c7ddd6!important}
+
+@media(max-width:1100px){
+  main{padding:10px 12px 25px!important}
+  .header-brand{width:185px!important;min-width:185px!important}
+  .global-search{max-width:340px!important}
+  #dashboard .dashboard-content-grid{grid-template-columns:1fr 1fr!important}
+  #dashboard .dashboard-notifications-panel{grid-column:1/-1!important}
+}
