@@ -480,3 +480,274 @@ body.dark .btn-small.danger:hover{background:#3b1d1a}
 .login-kicker{font-size:11px;font-weight:800;letter-spacing:2px;color:#159447;margin-bottom:5px}.login-box h1{margin:0;font-size:32px;font-weight:850;letter-spacing:-.6px}.login-box>p{color:var(--muted);margin:7px 0 20px;font-size:14px}
 .login-divider{display:flex;align-items:center;gap:10px;margin:0 0 20px;color:var(--muted);font-size:11px}.login-divider span{height:1px;flex:1;background:var(--border)}.login-divider b{font-weight:700;white-space:nowrap}
 .login-box input{width:100%;margin:7px 0}.password-field{position:relative;width:100%}.password-field input{padding-right:48px}.password-toggle{position:absolute;right:8px;top:50%;transform:translateY(-50%);width:36px;height:36px;padding:0;border:0;border-radius:10px;display:grid;place-items:center;background:transparent;color:var(--muted)}.password-toggle:hover{background:var(--surface-2);color:var(--text)}.password-toggle:focus-visible{outline:2px solid #23b95f;outline-offset:2px}.login-btn{width:100%;margin-top:13px;min-height:48px;font-weight:800;box-shadow:0 10px 24px rgba(35,185,95,.18)}.login-btn span{margin-right:6px}.login-security{margin-top:16px;font-size:11px;color:var(--muted)}
+
+/* =========================================================
+   PHARMASTOCK VISUAL POLISH — PREMIUM UI PASS
+   ========================================================= */
+:root{
+  --bg:#f3f7f6;
+  --surface:#ffffff;
+  --surface-2:#f7faf9;
+  --text:#132b24;
+  --muted:#71817b;
+  --border:#dfe9e4;
+  --primary:#0b8f52;
+  --primary-2:#28c76f;
+  --blue:#1976d2;
+  --purple:#6657d9;
+  --orange:#ee9b16;
+  --red:#e5484d;
+  --shadow:0 18px 45px rgba(21,65,49,.09);
+  --shadow-soft:0 7px 22px rgba(21,65,49,.065);
+}
+
+body{
+  background:
+    radial-gradient(circle at 78% 0%,rgba(40,199,111,.075),transparent 26%),
+    radial-gradient(circle at 5% 95%,rgba(25,118,210,.045),transparent 24%),
+    var(--bg);
+}
+
+/* Sidebar: cleaner, more premium navigation */
+.sidebar{
+  width:260px;
+  padding:18px 13px 18px;
+  background:linear-gradient(180deg,#8ee878 0%,#36c75d 38%,#08783d 100%);
+  box-shadow:12px 0 35px rgba(7,83,42,.14);
+}
+.brand{
+  padding:7px 13px 8px;
+  font-size:23px;
+  letter-spacing:-.7px;
+}
+.brand:after{
+  content:'Pharmacy Management System';
+  display:block;
+  margin:5px 0 0 34px;
+  font-size:9px;
+  letter-spacing:.7px;
+  text-transform:uppercase;
+  font-weight:700;
+  opacity:.72;
+}
+.sidebar-user{
+  margin:8px 10px 12px;
+  padding:10px 12px;
+  border:1px solid rgba(255,255,255,.20);
+  background:rgba(255,255,255,.15);
+  backdrop-filter:blur(7px);
+  border-radius:12px;
+}
+.sidebar-hide-btn{
+  margin:0 10px 9px;
+  width:calc(100% - 20px);
+  background:rgba(0,0,0,.08);
+  border-color:rgba(255,255,255,.18);
+}
+.nav{
+  margin:3px 0;
+  padding:11px 13px;
+  border:1px solid transparent;
+  border-radius:12px;
+  font-size:13.5px;
+  letter-spacing:-.05px;
+}
+.nav:hover{background:rgba(255,255,255,.18);transform:translateX(3px)}
+.nav.active{
+  color:#08783c;
+  background:#fff;
+  box-shadow:0 8px 20px rgba(0,0,0,.10);
+}
+.sidefoot{left:13px;right:13px;bottom:15px}
+
+main{
+  margin-left:260px;
+  width:calc(100% - 260px);
+  padding:24px 30px 40px;
+}
+#app{min-width:1200px}
+
+/* Header */
+header{
+  min-height:76px;
+  margin-bottom:20px;
+  padding:13px 17px;
+  border-radius:20px;
+  background:rgba(255,255,255,.82);
+  box-shadow:var(--shadow-soft);
+}
+header h1{font-size:27px;font-weight:800}
+header p{font-size:12px;margin-top:4px}
+.header-actions{gap:8px}
+.header-logout,.export,#bdClock{min-height:38px}
+.header-logout,.export{border-radius:11px}
+#bdClock{display:flex;align-items:center;gap:8px;padding:8px 11px;background:var(--surface-2)}
+
+/* Dashboard cards */
+.cards{grid-template-columns:repeat(5,minmax(155px,1fr));gap:14px}
+.card{
+  min-height:118px;
+  padding:18px;
+  border-radius:18px;
+  position:relative;
+  overflow:hidden;
+  box-shadow:var(--shadow-soft);
+}
+.card:after{
+  content:'';
+  position:absolute;
+  width:72px;height:72px;
+  right:-25px;bottom:-28px;
+  border-radius:50%;
+  background:rgba(40,199,111,.07);
+}
+.card b{font-size:25px;position:relative;z-index:1}
+.card span{font-size:11px;text-transform:uppercase;letter-spacing:.45px}
+.card:first-child{border-top:0;border-left:4px solid var(--primary-2)}
+.card.warn{border-top:0;border-left:4px solid var(--orange)}
+.card.danger{border-top:0;border-left:4px solid var(--red)}
+.card.profit-card{border-left:4px solid var(--primary)}
+
+/* Panels */
+.panel{
+  border-radius:20px;
+  padding:21px;
+  margin-top:18px;
+  box-shadow:var(--shadow-soft);
+}
+.panel h2{font-size:16px;margin-bottom:14px;font-weight:800}
+.panel h3{font-weight:800}
+.grid2{gap:18px}
+
+/* Quick actions */
+.actions{gap:13px}
+.actions button{
+  min-height:62px;
+  border-radius:15px;
+  box-shadow:0 8px 20px rgba(10,142,76,.14);
+}
+
+/* Forms */
+input,select{
+  min-height:42px;
+  border-radius:12px;
+  background:var(--surface);
+}
+input:focus,select:focus{transform:translateY(-1px)}
+.field-label{font-size:12px;letter-spacing:.1px}
+button{border-radius:11px}
+.primary{border-radius:11px}
+.toolbar{gap:11px}
+
+/* Tables */
+.tablewrap,.audit-table-wrap{
+  border:1px solid var(--border);
+  border-radius:14px;
+  background:var(--surface);
+}
+table{border-spacing:0;min-width:720px}
+th{padding:12px 11px;background:var(--surface-2);font-size:10.5px;letter-spacing:.55px}
+td{padding:12px 11px;font-size:12.5px}
+tbody tr:last-child td{border-bottom:0}
+tbody tr:hover{background:rgba(40,199,111,.045)}
+
+/* Status/notification surfaces */
+.msg{border-radius:12px}
+.stock-alert-item{border-radius:14px;background:var(--surface-2);padding:13px 14px}
+
+/* Admin activity area */
+.activity-header{padding-bottom:4px}
+.activity-actions button{font-size:12px;font-weight:800}
+.audit-table-wrap{box-shadow:inset 0 0 0 1px rgba(255,255,255,.15)}
+.audit-table{min-width:1080px}
+.audit-table th,.audit-table td{padding:12px 11px}
+.audit-check input{accent-color:var(--primary)}
+
+/* Modals */
+.modal{backdrop-filter:blur(5px)}
+.modalbox{
+  width:min(680px,94vw);
+  padding:28px;
+  border-radius:24px;
+  box-shadow:0 30px 90px rgba(0,0,0,.28);
+}
+.close{width:38px;height:38px;border-radius:10px}
+.close:hover{background:var(--surface-2)}
+
+/* Analytics / chart surfaces */
+.analytics-grid{gap:18px}
+.chart-card{border-radius:18px;padding:19px;box-shadow:var(--shadow-soft)}
+
+/* Login */
+.login-page{
+  background:
+    radial-gradient(circle at 12% 18%,rgba(40,199,111,.22),transparent 30%),
+    radial-gradient(circle at 90% 82%,rgba(25,118,210,.13),transparent 30%),
+    linear-gradient(135deg,#f0f8f4,#f7fbfa);
+}
+.login-box{
+  border-radius:28px;
+  box-shadow:0 28px 85px rgba(21,65,49,.15);
+}
+.login-brand-mark{box-shadow:0 15px 35px rgba(35,185,95,.24)}
+.login-btn{border-radius:13px}
+
+/* Horizontal scrolling: preserve full desktop layout on narrow displays */
+html,body{overflow-x:auto}
+main{overflow-x:visible}
+.page{min-width:0}
+.tablewrap,.audit-table-wrap,.chart-card{max-width:100%;overflow-x:auto}
+
+/* Smooth, consistent interaction */
+button,.nav,.card,.panel,.export,.header-logout,input,select{transition:transform .18s ease,box-shadow .18s ease,border-color .18s ease,background .18s ease}
+
+/* Dark mode refinement */
+body.dark{
+  --bg:#071713;
+  --surface:#0e211b;
+  --surface-2:#102a22;
+  --text:#eaf7f0;
+  --muted:#9bb4aa;
+  --border:#1d4034;
+  --input:#0a1b16;
+}
+body.dark header{background:rgba(14,33,27,.90)}
+body.dark .login-page{background:radial-gradient(circle at 12% 18%,rgba(40,199,111,.13),transparent 30%),radial-gradient(circle at 90% 82%,rgba(25,118,210,.10),transparent 30%),#071713}
+body.dark .card:after{background:rgba(40,199,111,.06)}
+
+/* Tablet / laptop */
+@media(max-width:1250px){
+  .cards{grid-template-columns:repeat(4,minmax(155px,1fr))}
+}
+@media(max-width:1050px){
+  .sidebar{width:230px}
+  main{margin-left:230px;width:calc(100% - 230px);padding:20px}
+  .cards{grid-template-columns:repeat(3,minmax(155px,1fr))}
+}
+@media(max-width:760px){
+  .sidebar{width:70px}
+  .brand:after{display:none}
+  main{margin-left:70px;width:calc(100% - 70px);padding:14px}
+  .cards{grid-template-columns:repeat(2,minmax(150px,1fr))}
+}
+@media(max-width:470px){
+  .cards{grid-template-columns:1fr}
+}
+
+/* REALISTIC PHARMASTOCK BRANDING */
+.brand{display:flex;align-items:center;gap:10px;line-height:1.05}
+.brand img{width:39px;height:39px;display:block;flex:0 0 39px;filter:drop-shadow(0 5px 10px rgba(0,0,0,.16))}
+.brand span{display:block}
+.brand:after{margin:3px 0 0 49px;position:absolute;transform:translateY(0);font-size:8px;letter-spacing:.65px}
+.login-brand-mark{background:transparent;border:0;box-shadow:none;width:92px;height:92px;margin-bottom:12px}
+.login-brand-mark img{width:92px;height:92px;display:block;filter:drop-shadow(0 14px 22px rgba(7,120,61,.22))}
+.invoice-brand{display:flex;align-items:center;gap:12px}
+.invoice-brand img{width:48px;height:48px;display:block}
+.invoice-brand div{display:flex;flex-direction:column;gap:2px}
+.invoice-brand b{font-size:18px;color:#08783d}
+.invoice-brand span{font-size:11px;color:#6b7c93}
+@media(max-width:760px){
+  .brand{justify-content:center;gap:0}
+  .brand img{width:36px;height:36px;flex-basis:36px}
+  .brand span,.brand:after{display:none}
+}

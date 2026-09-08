@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="PharmaStock logo">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#28c76f"/>
+      <stop offset="0.55" stop-color="#0b9b55"/>
+      <stop offset="1" stop-color="#08783d"/>
+    </linearGradient>
+    <linearGradient id="c" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="1" stop-color="#dff8e9"/>
+    </linearGradient>
+    <filter id="s" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="10" stdDeviation="12" flood-color="#075c31" flood-opacity=".22"/>
+    </filter>
+  </defs>
+  <circle cx="256" cy="256" r="226" fill="#e9fff0"/>
+  <circle cx="256" cy="256" r="208" fill="url(#g)" filter="url(#s)"/>
+  <path d="M151 130h82v86h46v-86h82v86h-82v45h82v86h-82v-86h-46v86h-82v-86h82v-45h-82z" fill="url(#c)"/>
+  <g transform="rotate(-35 256 256)">
+    <rect x="235" y="120" width="82" height="272" rx="41" fill="#fff" opacity=".98"/>
+    <path d="M235 256h82v95c0 22.64-18.36 41-41 41s-41-18.36-41-41z" fill="#1687ee" opacity=".92"/>
+    <path d="M235 161c0-22.64 18.36-41 41-41s41 18.36 41 41v95h-82z" fill="#ffffff"/>
+    <path d="M235 256h82" stroke="#c8ded5" stroke-width="5"/>
+  </g>
+  <circle cx="405" cy="107" r="24" fill="#fff" opacity=".95"/>
+  <path d="M393 107h24M405 95v24" stroke="#0b9b55" stroke-width="8" stroke-linecap="round"/>
+</svg>
