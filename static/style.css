@@ -1749,3 +1749,167 @@ body.dark td{color:#c7ddd6!important}
   #dashboard .dashboard-content-grid{grid-template-columns:1fr 1fr!important}
   #dashboard .dashboard-notifications-panel{grid-column:1/-1!important}
 }
+
+/* =========================================================
+   PHARMASTOCK — FINAL REFERENCE IMPLEMENTATION
+   Visual structure follows the supplied full-app reference:
+   full-width topbar, compact teal sidebar, dense SaaS cards,
+   clean tables, modern POS and consistent page surfaces.
+   ========================================================= */
+:root{
+  --ref-green:#079a6b;
+  --ref-green-dark:#00584d;
+  --ref-green-deep:#00483f;
+  --ref-bg:#f4f8f9;
+  --ref-card:#ffffff;
+  --ref-line:#dfe9ed;
+  --ref-text:#173344;
+  --ref-muted:#78909d;
+}
+
+html,body{background:var(--ref-bg)!important;color:var(--ref-text)!important}
+body{overflow-x:auto!important}
+#app{min-width:1180px!important;background:linear-gradient(180deg,#f7fafb 0%,#f1f6f8 100%)!important}
+
+/* Top bar spans the complete application, exactly like the reference. */
+.sidebar{
+  top:68px!important;
+  height:calc(100vh - 68px)!important;
+  min-height:0!important;
+  width:238px!important;
+  padding:8px 8px 9px!important;
+  background:linear-gradient(180deg,#00675a 0%,#00564d 48%,#003f39 100%)!important;
+  border-radius:0!important;
+  box-shadow:5px 0 18px rgba(0,68,59,.10)!important;
+}
+.sidebar .brand{display:none!important}
+.sidebar-user{
+  order:5!important;margin:0 6px 7px!important;min-height:47px!important;
+  padding:8px 10px!important;border-radius:9px!important;background:rgba(255,255,255,.07)!important;
+  border:1px solid rgba(255,255,255,.08)!important;color:#effff9!important;
+}
+.sidebar-hide-btn{order:1!important;margin:0 6px 7px!important;width:calc(100% - 12px)!important;min-height:32px!important;padding:6px 9px!important;font-size:9px!important}
+.sidebar-nav-scroll{order:2!important;padding:0 1px 5px!important}
+.nav{min-height:35px!important;padding:7px 11px!important;margin:2px 0!important;border-radius:8px!important;font-size:10.5px!important}
+.nav.active{background:#0aa06f!important;color:#fff!important;box-shadow:0 5px 14px rgba(0,0,0,.12)!important}
+.sidefoot{order:6!important;padding:0!important}
+
+main{
+  margin-left:238px!important;width:calc(100% - 238px)!important;
+  min-width:942px!important;padding:82px 18px 28px!important;
+}
+#app.sidebar-collapsed main{margin-left:0!important;width:100%!important;padding-top:82px!important}
+
+header{
+  position:fixed!important;left:0!important;right:0!important;top:0!important;z-index:40!important;
+  min-height:68px!important;height:68px!important;margin:0!important;padding:9px 18px!important;
+  border:0!important;border-bottom:1px solid #dfe9ed!important;border-radius:0!important;
+  background:rgba(255,255,255,.97)!important;box-shadow:0 3px 16px rgba(24,65,79,.06)!important;
+  backdrop-filter:blur(12px)!important;
+}
+.header-brand{order:1!important;width:215px!important;min-width:215px!important;display:flex!important;align-items:center!important;gap:8px!important}
+.header-brand img{width:40px!important;height:40px!important}
+.header-brand strong{font-size:19px!important;color:#087a5d!important;font-weight:800!important}
+.header-brand small{display:block!important;font-size:8px!important;color:#8195a1!important;margin-top:2px!important}
+.global-search{order:2!important;flex:1 1 420px!important;max-width:420px!important;height:35px!important;margin:0 auto!important;border:1px solid #dce7eb!important;border-radius:9px!important;background:#fbfdfe!important}
+.global-search input{height:31px!important;min-height:31px!important;font-size:10px!important}
+.header-actions{order:3!important;display:flex!important;align-items:center!important;gap:7px!important;flex-wrap:nowrap!important}
+.notification-bell{order:1!important;width:32px!important;height:32px!important;min-height:32px!important;font-size:16px!important}
+.header-user{order:2!important;display:flex!important;align-items:center!important;gap:6px!important;padding:2px 4px!important}
+.header-user-avatar{width:31px!important;height:31px!important}
+.header-user-copy b{font-size:9px!important}
+.header-user-copy small{font-size:7px!important}
+.theme-toggle{order:3!important;height:32px!important}
+.theme-toggle button{height:27px!important;min-height:27px!important;padding:0 9px!important;font-size:9px!important}
+.export{order:4!important;height:32px!important;min-height:32px!important}
+.header-logout{order:5!important;height:32px!important;min-height:32px!important;border-color:#07986a!important;color:#087d5c!important;background:#fff!important}
+#bdClock{display:none!important}
+
+/* Every page uses the same reference spacing. */
+.page{max-width:none!important}
+.page:not(#dashboard){padding-top:1px!important}
+.page:not(#dashboard)>h1,.page:not(#dashboard)>h2{font-size:19px!important;margin:0 0 12px!important}
+
+/* Dashboard */
+.dashboard-heading{margin:0 0 12px 2px!important;min-height:42px!important;padding-right:205px!important}
+.dashboard-heading-icon{width:38px!important;height:38px!important;border-radius:10px!important;background:#e1f6ed!important;color:#07986a!important}
+.dashboard-heading h1{font-size:21px!important}
+.dashboard-heading p{font-size:9px!important}
+.dashboard-date-card{right:0!important;top:0!important;width:188px!important;min-height:49px!important;border-radius:10px!important}
+#dashboard .dashboard-kpis{grid-template-columns:repeat(4,minmax(0,1fr))!important;gap:11px!important;margin:0 0 12px!important}
+#dashboard .dashboard-kpis .card{min-height:88px!important;padding:14px 10px 10px 68px!important;border-radius:11px!important}
+#dashboard .dashboard-kpis .card:before{left:12px!important;top:15px!important;width:42px!important;height:42px!important;border-radius:10px!important;font-size:19px!important}
+#dashboard .dashboard-kpis .card span{font-size:8.5px!important}
+#dashboard .dashboard-kpis .card b{font-size:18px!important}
+#dashboard .dashboard-kpis .card em{font-size:8px!important}
+#dashboard .dashboard-content-grid{grid-template-columns:minmax(0,1.65fr) minmax(235px,.86fr) minmax(220px,.82fr)!important;gap:11px!important}
+#dashboard .dashboard-chart-panel,#dashboard .best-sellers-panel,#dashboard .dashboard-notifications-panel{min-height:245px!important;margin:0!important;padding:13px!important;border-radius:11px!important}
+#dashboard .quick-actions-panel{margin-top:11px!important;padding:11px 13px!important;border-radius:11px!important}
+#dashboard .actions{grid-template-columns:repeat(5,minmax(0,1fr))!important;gap:8px!important}
+#dashboard .actions button{min-height:39px!important;font-size:8.5px!important;border-radius:8px!important}
+#dashboard .stock-alert-panel{margin-top:11px!important}
+
+/* Universal cards/panels/forms/tables */
+.panel,.chart-card,.card{border:1px solid var(--ref-line)!important;background:#fff!important;box-shadow:0 4px 15px rgba(25,64,77,.045)!important}
+.panel{border-radius:11px!important;padding:13px!important}
+.panel h2{font-size:12.5px!important;color:#173344!important}
+.panel h3{font-size:11px!important}
+input,select{height:35px!important;min-height:35px!important;border:1px solid #dce7eb!important;border-radius:8px!important;background:#fff!important;font-size:9px!important;color:#294250!important;box-shadow:none!important}
+input:focus,select:focus{border-color:#79cbb0!important;box-shadow:0 0 0 3px rgba(8,155,108,.08)!important}
+.field-label{font-size:8.5px!important;color:#657d89!important;margin-bottom:4px!important}
+button,.button{min-height:33px!important;border-radius:8px!important;font-size:9px!important;font-weight:600!important}
+.primary{background:linear-gradient(135deg,#08a56f,#087e5d)!important}
+.toolbar{margin-bottom:10px!important;gap:8px!important}
+.tablewrap,.audit-table-wrap{border:1px solid #e1eaee!important;border-radius:9px!important;overflow-x:auto!important;background:#fff!important;box-shadow:none!important}
+table{min-width:760px!important;width:100%!important}
+th{padding:8px 9px!important;background:#f7fafb!important;color:#718894!important;font-size:7.5px!important}
+td{padding:8px 9px!important;color:#35515f!important;font-size:8.5px!important}
+tbody tr:hover{background:#f4faf8!important}
+
+/* Medicines */
+#inventory .toolbar .field{flex:1!important}
+#inventory .toolbar>button{min-width:100px!important}
+
+/* Sales & Billing: two-column POS like the reference */
+#sales .grid2{grid-template-columns:minmax(0,1.6fr) minmax(260px,.8fr)!important;gap:10px!important}
+#sales .saleadd{grid-template-columns:minmax(0,1.45fr) 58px minmax(100px,.85fr) 62px 52px!important;gap:6px!important;align-items:end!important}
+#sales .total{border:1px solid #e5edef!important;border-radius:8px!important;background:#f9fcfb!important;padding:8px!important;margin:8px 0!important;font-size:9px!important}
+
+/* Stock In */
+#purchase .formpanel{width:100%!important}
+#purchase .row{grid-template-columns:repeat(5,minmax(0,1fr))!important;gap:8px!important}
+
+/* Management pages */
+#reports .grid2,#suppliers .grid2,#customers .grid2,#users .grid2,#settings .grid2{grid-template-columns:minmax(280px,.72fr) minmax(0,1.28fr)!important;gap:10px!important}
+.analytics-grid{gap:10px!important}
+.chart-card{border-radius:11px!important;padding:12px!important}
+#profitLoss .cards.compact{grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:9px!important}
+
+/* Activity table stays horizontally scrollable */
+.staff-activity-panel{overflow:hidden!important}
+.audit-table{min-width:1050px!important}
+.activity-actions{gap:6px!important}
+
+/* Login uses the same brand language */
+.login-page{background:linear-gradient(135deg,#eef9f5 0%,#f8fbfc 100%)!important}
+.login-box{border-radius:16px!important;border:1px solid #dce8eb!important;box-shadow:0 24px 70px rgba(0,67,57,.13)!important}
+
+/* Dark mode keeps the same layout, with premium dark surfaces. */
+body.dark{background:#071916!important}
+body.dark #app{background:#071916!important}
+body.dark header{background:#0b2721!important;border-color:#1e453b!important}
+body.dark .panel,body.dark .card,body.dark .dashboard-date-card,body.dark .tablewrap,body.dark .audit-table-wrap,body.dark .chart-card{background:#0d2923!important;border-color:#20473d!important}
+body.dark .global-search,body.dark input,body.dark select{background:#0a211b!important;border-color:#21483e!important;color:#e8f5f1!important}
+body.dark th{background:#102f28!important;color:#9bb7ad!important}
+body.dark td{color:#c7ddd6!important}
+body.dark .header-brand strong,body.dark .header-user-copy b,body.dark .dashboard-heading h1,body.dark .dashboard-date-card b,body.dark .panel h2,body.dark .panel h3,body.dark .card b{color:#e8f5f1!important}
+body.dark .header-brand small,body.dark .header-user-copy small,body.dark .dashboard-heading p,body.dark .field-label,body.dark .panel-subtitle{color:#9bb7ad!important}
+
+@media(max-width:1050px){
+  header{padding:9px 12px!important}
+  .header-brand{width:190px!important;min-width:190px!important}
+  .global-search{max-width:320px!important}
+  main{padding-left:12px!important;padding-right:12px!important}
+  #dashboard .dashboard-content-grid{grid-template-columns:1fr 1fr!important}
+  #dashboard .dashboard-notifications-panel{grid-column:1/-1!important}
+}
