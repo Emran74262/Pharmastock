@@ -857,14 +857,20 @@ async function loadAnalytics(){
   const sy=v=>padT+(h-padT-padB)*(1-v/max);
   const salesPts=vals.map((v,i)=>`${sx(i).toFixed(1)},${sy(v).toFixed(1)}`).join(' ');
   const profitPts=profits.map((v,i)=>`${sx(i).toFixed(1)},${sy(v).toFixed(1)}`).join(' ');
+  const dark=document.body.classList.contains('dark');
+  const gridColor=dark?'#21483e':'#e7eef1';
+  const axisColor=dark?'#8faea3':'#8da0aa';
+  const labelColor=dark?'#8faea3':'#8095a1';
+  const salesColor='#10a56f';
+  const profitColor='#2587e0';
   const grid=[0,.25,.5,.75,1].map(fr=>{
     const y=padT+(h-padT-padB)*fr;
     const label=money(max*(1-fr)).replace('৳','');
-    return `<line x1="${padL}" y1="${y}" x2="${w-padR}" y2="${y}" stroke="#e7eef1" stroke-width="1"/><text x="3" y="${y+3}" font-size="8" fill="#8da0aa">${esc(label)}</text>`;
+    return `<line x1="${padL}" y1="${y}" x2="${w-padR}" y2="${y}" stroke="${gridColor}" stroke-width="1"/><text x="3" y="${y+3}" font-size="8" fill="${axisColor}">${esc(label)}</text>`;
   }).join('');
-  const labels=daily.map((x,i)=>`<text x="${sx(i)}" y="${h-8}" text-anchor="middle" font-size="8" fill="#8095a1">${esc(String(x.day||'').slice(5).replace('-','/'))}</text>`).join('');
-  const dots=vals.map((v,i)=>`<circle cx="${sx(i)}" cy="${sy(v)}" r="3" fill="#10a56f"/>`).join('')+profits.map((v,i)=>`<circle cx="${sx(i)}" cy="${sy(v)}" r="3" fill="#1687ee"/>`).join('');
-  const chartSvg=`<svg viewBox="0 0 ${w} ${h}" width="100%" height="190" role="img" aria-label="Sales and profit chart">${grid}<polyline points="${salesPts}" fill="none" stroke="#10a56f" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/><polyline points="${profitPts}" fill="none" stroke="#1687ee" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>${dots}${labels}</svg>`;
+  const labels=daily.map((x,i)=>`<text x="${sx(i)}" y="${h-8}" text-anchor="middle" font-size="8" fill="${labelColor}">${esc(String(x.day||'').slice(5).replace('-','/'))}</text>`).join('');
+  const dots=vals.map((v,i)=>`<circle cx="${sx(i)}" cy="${sy(v)}" r="3" fill="${salesColor}"/>`).join('')+profits.map((v,i)=>`<circle cx="${sx(i)}" cy="${sy(v)}" r="3" fill="${profitColor}"/>`).join('');
+  const chartSvg=`<svg viewBox="0 0 ${w} ${h}" width="100%" height="190" role="img" aria-label="Sales and profit chart">${grid}<polyline points="${salesPts}" fill="none" stroke="${salesColor}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/><polyline points="${profitPts}" fill="none" stroke="${profitColor}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>${dots}${labels}</svg>`;
   charts.forEach(el=>el.innerHTML=chartSvg);
 
   const bestHtml=(d.best_sellers||[]).map((x,i)=>`<div class="rank-row"><b>${i+1}</b><span>${esc(x.name)}</span><strong>${x.qty}</strong><em>↑ ${Math.max(1,Math.round(Number(x.profit||0)))}%</em></div>`).join('')||'<p class="muted">No sales yet.</p>';
